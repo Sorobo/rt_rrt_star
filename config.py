@@ -31,3 +31,6 @@ K_PLANNING = 100
 WORLD_BOUNDS = np.array([[0, 100],
                          [0, 100]])
 WORLD_AREA = (WORLD_BOUNDS[0,1] - WORLD_BOUNDS[0,0]) * (WORLD_BOUNDS[1,1] - WORLD_BOUNDS[1,0])
+
+BOAT_WIDTH = 2.8
+BOAT_LENGTH = 5

@@ -4,8 +4,9 @@ import pygame
 import numpy as np
 
 from agent_dynamics import AgentDynamics
+from boat_dynamics import MilliAmpere1Sim
 from rt_rrt_star import RTRRTStar
-from config import WORLD_BOUNDS, OBSTACLE_BLOCK_RADIUS,R_S
+from config import WORLD_BOUNDS, OBSTACLE_BLOCK_RADIUS, R_S, BOAT_WIDTH, BOAT_LENGTH
 from dynamic_obstacle import DynamicObstacle
 
 # ---------------------------
@@ -132,11 +133,34 @@ def draw_path(screen, path):
     pygame.draw.lines(screen, COLOR_PATH, False, pts, width=3)
 
 
+def draw_boat(screen, boat):
+    """Draw the boat as a rectangle with heading indicator"""
+    corners = boat.get_corners()
+    
+    # Convert corners to screen coordinates
+    screen_corners = [world_to_screen(corner) for corner in corners]
+    
+    # Draw boat body
+    pygame.draw.polygon(screen, COLOR_AGENT, screen_corners)
+    pygame.draw.polygon(screen, (255, 255, 255), screen_corners, 2)  # White outline
+    
+    # Draw heading indicator (arrow from center to front)
+    center = world_to_screen(boat.x)
+    front_center = world_to_screen(boat.x + np.array([
+        np.cos(boat.heading) * boat.length / 2,
+        np.sin(boat.heading) * boat.length / 2
+    ]))
+    pygame.draw.line(screen, (255, 255, 0), center, front_center, 3)
+
 def draw_agent_and_goal(screen, x_agent, x_goal):
     ax, ay = world_to_screen(x_agent)
     gx, gy = world_to_screen(x_goal)
 
     pygame.draw.circle(screen, COLOR_AGENT, (ax, ay), 6)
+    pygame.draw.circle(screen, COLOR_GOAL, (gx, gy), 6)
+    
+def draw_goal(screen, x_goal):
+    gx, gy = world_to_screen(x_goal)
     pygame.draw.circle(screen, COLOR_GOAL, (gx, gy), 6)
 
 def draw_ruler(screen):
@@ -215,8 +239,8 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([0.5, 0.5])
-    x_goal  = np.array([0.8, 0.8])
+    x_start = np.array([0.5, 0.5,0])
+    x_goal  = np.array([0.8, 0.8,0])
 
     obstacles = [
         (np.array([0.0, 5.0]), 3.0),
@@ -257,8 +281,8 @@ def main():
     ]
 
     planner = RTRRTStar(WORLD_BOUNDS, x_start)
-    agent = AgentDynamics(x_start, speed=4)
-    x_agent = agent.x
+    boat = MilliAmpere1Sim(x_start)
+    x_agent = boat.x
     running = True
 
     while running:
@@ -292,11 +316,13 @@ def main():
         # ---------------------------
         path = planner.step(x_agent, x_goal, obstacles, dynamic_obstacles, dt)
 
-        # Move agent along path (if there is at least 1 step ahead)
+        # Move boat along path (if there is at least 1 step ahead)
         
         if len(path) > 1:
             next_node = path[0]
-            x_agent = agent.update(next_node.x, dt)
+            print("Next node:", next_node.x)
+            boat.step(next_node.x)
+            x_agent = boat.x[:2]
 
         # Re-root the tree every second
         # ---------------------------
@@ -309,7 +335,8 @@ def main():
         draw_dynamic_obstacles(screen, dynamic_obstacles)
         draw_tree(screen, planner.tree)
         draw_path(screen, path)
-        draw_agent_and_goal(screen, x_agent, x_goal)
+        draw_boat(screen, boat)
+        draw_goal(screen, x_goal)
         draw_ruler(screen)
         draw_root_node(screen, planner.tree)
         draw_sampling_ellipse(screen, planner.c_best, planner.tree.root.x, x_goal)

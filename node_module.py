@@ -3,8 +3,9 @@
 import numpy as np
 
 class Node:
-    def __init__(self, x):
+    def __init__(self, x, heading=0.0):
         self.x = np.asarray(x, dtype=float)
+        self.heading = float(heading)  # Heading angle in radians
         self.parent = None
         self.children = []
         self.cost = 0.0      # cost-to-reach
