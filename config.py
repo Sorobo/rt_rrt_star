@@ -9,7 +9,7 @@ BETA = 1         # controls mix of uniform vs ellipse sampling
 # Tree density
 K_MAX = 15         # max neighbors for rewiring
 R_S = 0.3          # minimum spacing between nodes
-STEP_SIZE = 1  # maximum distance for extending the tree
+STEP_SIZE = 4  # maximum distance for extending the tree
 
 # Environment/obstacles
 GOAL_RADIUS = 1
@@ -28,6 +28,6 @@ GRID_SIZE = 2.0
 K_PLANNING = 100
 
 #World bounds
-WORLD_BOUNDS = np.array([[0, 100],
-                         [0, 100]])
+WORLD_BOUNDS = np.array([[0, 20],
+                         [0, 20]])
 WORLD_AREA = (WORLD_BOUNDS[0,1] - WORLD_BOUNDS[0,0]) * (WORLD_BOUNDS[1,1] - WORLD_BOUNDS[1,0])

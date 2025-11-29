@@ -248,7 +248,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(100, 1, 3)
+    obstacles = generate_obstacles(25, 1, 2)
     # Initialize dynamic obstacles
     dynamic_obstacles = [
         #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
@@ -310,7 +310,7 @@ def main():
         draw_tree(screen, planner.tree)
         draw_path(screen, path)
         draw_agent_and_goal(screen, x_agent, x_goal)
-        draw_ruler(screen)
+        #draw_ruler(screen)
         draw_root_node(screen, planner.tree)
         draw_sampling_ellipse(screen, planner.c_best, planner.tree.root.x, x_goal)
         draw_search_radius(screen, planner.tree)
