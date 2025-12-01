@@ -116,6 +116,13 @@ def draw_tree(screen, tree):
                 pygame.draw.circle(screen, (255, 165, 0), x, 2)
             else:
                 pygame.draw.circle(screen, COLOR_TREE, x, 2)
+                # Draw heading indicator for nodes with heading info
+                if len(node.x) >= 3:  # Check if node has heading
+                    heading = node.x[2]
+                    line_len = 10  # Length in screen pixels
+                    end_x = x[0] + line_len * math.cos(heading)
+                    end_y = x[1] - line_len * math.sin(heading)  # Flip y for pygame
+                    pygame.draw.line(screen, COLOR_TREE, x, (int(end_x), int(end_y)), 1)
     # Draw nodes
     """
     for node_id in tree.index.nodes:  # Iterate over node IDs
@@ -141,14 +148,15 @@ def draw_boat(screen, boat):
     screen_corners = [world_to_screen(corner) for corner in corners]
     
     # Draw boat body
-    pygame.draw.polygon(screen, COLOR_AGENT, screen_corners)
-    pygame.draw.polygon(screen, (255, 255, 255), screen_corners, 2)  # White outline
-    
+    boat_surface = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE), pygame.SRCALPHA)
+    pygame.draw.polygon(boat_surface, (*COLOR_AGENT, 128), screen_corners)  # Semi-transparent boat
+    pygame.draw.polygon(boat_surface, (255, 255, 255), screen_corners, 2)  # White outline
+    screen.blit(boat_surface, (0, 0))
     # Draw heading indicator (arrow from center to front)
     center = world_to_screen(boat.x)
-    front_center = world_to_screen(boat.x + np.array([
-        np.cos(boat.heading) * boat.length / 2,
-        np.sin(boat.heading) * boat.length / 2
+    front_center = world_to_screen(boat.x[:2] + np.array([
+        np.cos(boat.x[2]) * boat.length / 2,
+        np.sin(boat.x[2]) * boat.length / 2
     ]))
     pygame.draw.line(screen, (255, 255, 0), center, front_center, 3)
 
@@ -227,7 +235,11 @@ def generate_obstacles(num_obstacles, min_radius, max_radius):
         x = np.random.uniform(WORLD_BOUNDS[0, 0], WORLD_BOUNDS[0, 1])
         y = np.random.uniform(WORLD_BOUNDS[1, 0], WORLD_BOUNDS[1, 1])
         radius = np.random.uniform(min_radius, max_radius)
+        # Skip obstacles in bottom left corner (x < 7 and y < 7)
+        if x < 7 and y < 7:
+            continue
         obstacles.append((np.array([x, y]), radius))
+        
     return obstacles
 def main():
     
@@ -239,7 +251,7 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([0.5, 0.5,0])
+    x_start = np.array([3, 2,0])
     x_goal  = np.array([0.8, 0.8,0])
 
     obstacles = [
@@ -272,7 +284,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(100, 1, 3)
+    obstacles = generate_obstacles(15, 0.7, 7)
     # Initialize dynamic obstacles
     dynamic_obstacles = [
         #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
@@ -283,6 +295,7 @@ def main():
     planner = RTRRTStar(WORLD_BOUNDS, x_start)
     boat = MilliAmpere1Sim(x_start)
     x_agent = boat.x
+    print("Starting RT-RRT* demo. Close window to exit.",x_agent)
     running = True
 
     while running:
@@ -301,7 +314,7 @@ def main():
                 # Convert screen to world
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
-                x_goal = np.array([wx, wy], dtype=float)
+                x_goal = np.array([wx, wy, np.pi/2], dtype=float)
                 print(f"New goal: {x_goal}")
             # Right-click to add obstacle
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:

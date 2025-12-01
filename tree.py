@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from node_module import Node
 from spatial_index import SpatialIndex
 from collision import line_collision_free
-from config import K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,WORLD_AREA
+from config import K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,WORLD_AREA,STEP_SIZE
 from rtree_module import RTreeSpatialIndex
 
 class Tree:
@@ -23,7 +23,8 @@ class Tree:
     def neighbor_radius(self):
         # ε = sqrt( (|X| * kmax)/(pi * N) )
         area = WORLD_AREA
-        return max(R_S, np.sqrt(area * K_MAX / (np.pi * len(self.index.nodes))))
+        
+        return min(max(R_S, np.sqrt(area * K_MAX / (np.pi * len(self.index.nodes)))),STEP_SIZE*5)
 
     def nearby(self, x):
         eps = self.neighbor_radius()
@@ -147,10 +148,10 @@ class Tree:
     
     def is_node_blocked(self, all_obstacles,dyn_obstacles, node):
         for obs_center, obs_radius in all_obstacles:
-            if np.linalg.norm(node.x - obs_center) <=  obs_radius:
+            if np.linalg.norm(node.x[2:] - obs_center) <=  obs_radius:
                 return True
         for dyn_obs in dyn_obstacles:
-            if np.linalg.norm(node.x - dyn_obs.center) <= dyn_obs.radius+OBSTACLE_BLOCK_RADIUS:
+            if np.linalg.norm(node.x[2:] - dyn_obs.center) <= dyn_obs.radius+OBSTACLE_BLOCK_RADIUS:
                 return True
             
         return False
@@ -165,12 +166,12 @@ if __name__ == "__main__":
         side = 1  # fallback
 
     # Random root
-    root_pos = [0.5,0.5]
+    root_pos = [0.5,0.5,0.0]
     tree = Tree(root_pos)
 
     # Add 6 more random nodes
     for _ in range(200):
-        x_new = np.array([np.random.uniform(0, 1), np.random.uniform(0, 1)])
+        x_new = np.array([np.random.uniform(0, 1), np.random.uniform(0, 1), 0.0])
         nearest = tree.nearest_node(x_new)
         tree.add_node(x_new, nearest, obstacles=None)
     print("Tree has", len(tree.index.nodes), "nodes.")
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     plt.ylabel('Y')
     plt.show()
     
-    tree.set_root(tree.nearest_node(np.array([0.8,0.8])))
+    tree.set_root(tree.nearest_node(np.array([0.8,0.8,0])))
     print("New root set to:", tree.root.x)
     
     # Plot all nodes

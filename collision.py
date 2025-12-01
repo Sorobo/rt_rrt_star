@@ -2,7 +2,8 @@
 
 import numpy as np
 from scipy.spatial import ConvexHull
-from config import BOAT_WIDTH, BOAT_LENGTH
+from config import BOAT_WIDTH, BOAT_LENGTH,WORLD_BOUNDS
+
 
 def line_collision_free(x1, x2, obstacles):
     """Very simple checker: return True if straight line is collision-free."""
@@ -210,10 +211,18 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
         center, radius = obstacle
         if sat_polygon_circle(hull_vertices, center, radius):
             return False  # Collision detected
+    # Check if the hull is within world bounds
+    if np.any(hull_vertices[:, 0] < WORLD_BOUNDS[0][0]) or np.any(hull_vertices[:, 0] > WORLD_BOUNDS[0][1]) or \
+       np.any(hull_vertices[:, 1] < WORLD_BOUNDS[1][0]) or np.any(hull_vertices[:, 1] > WORLD_BOUNDS[1][1]):
+        return False  # Hull is out of bounds
+    
+    
     
     return True  # No collisions
 
 
+    
+    
 def boat_collision_free(start_node, end_node, obstacles, 
                         width=BOAT_WIDTH, length=BOAT_LENGTH):
     """
@@ -239,19 +248,10 @@ def boat_collision_free(start_node, end_node, obstacles,
         True if path is collision-free, False otherwise
     """
     # Extract position and heading from nodes or arrays
-    if hasattr(start_node, 'x'):
-        start_pos = start_node.x[:2] if len(start_node.x) > 2 else start_node.x
-        start_heading = getattr(start_node, 'heading', 0.0)
-    else:
-        start_pos = start_node[:2] if len(start_node) > 2 else start_node
-        start_heading = 0.0
-    
-    if hasattr(end_node, 'x'):
-        end_pos = end_node.x[:2] if len(end_node.x) > 2 else end_node.x
-        end_heading = getattr(end_node, 'heading', 0.0)
-    else:
-        end_pos = end_node[:2] if len(end_node) > 2 else end_node
-        end_heading = 0.0
+    start_pos = start_node.x[:2]
+    start_heading = start_node.x[2]
+    end_pos = end_node.x[:2]
+    end_heading = end_node.x[2]
     
     return boat_path_collision_free(start_pos, start_heading, 
                                     end_pos, end_heading,

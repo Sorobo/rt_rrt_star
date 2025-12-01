@@ -9,7 +9,7 @@ BETA = 1         # controls mix of uniform vs ellipse sampling
 # Tree density
 K_MAX = 15         # max neighbors for rewiring
 R_S = 0.3          # minimum spacing between nodes
-STEP_SIZE = 1  # maximum distance for extending the tree
+STEP_SIZE = 0.5  # maximum distance for extending the tree
 
 # Environment/obstacles
 GOAL_RADIUS = 1
@@ -26,11 +26,19 @@ GRID_SIZE = 2.0
 
 # k-step planning horizon
 K_PLANNING = 100
-
-#World bounds
-WORLD_BOUNDS = np.array([[0, 100],
-                         [0, 100]])
-WORLD_AREA = (WORLD_BOUNDS[0,1] - WORLD_BOUNDS[0,0]) * (WORLD_BOUNDS[1,1] - WORLD_BOUNDS[1,0])
-
 BOAT_WIDTH = 2.8
 BOAT_LENGTH = 5
+boat_minimum_dimensium = min(BOAT_WIDTH, BOAT_LENGTH)
+#World bounds
+WORLD_BOUNDS = np.array([[0, 50],
+                         [0, 50],
+                         [-np.pi, np.pi]])  # x, y, theta
+SAMPLEBOUNDS = WORLD_BOUNDS.copy()
+SAMPLEBOUNDS[0][0]+= boat_minimum_dimensium/2
+SAMPLEBOUNDS[0][1]-= boat_minimum_dimensium/2
+SAMPLEBOUNDS[1][0]+= boat_minimum_dimensium/2
+SAMPLEBOUNDS[1][1]-= boat_minimum_dimensium/2
+
+WORLD_AREA = (WORLD_BOUNDS[0,1] - WORLD_BOUNDS[0,0]) * (WORLD_BOUNDS[1,1] - WORLD_BOUNDS[1,0])* (WORLD_BOUNDS[2,1] - WORLD_BOUNDS[2,0])
+
+

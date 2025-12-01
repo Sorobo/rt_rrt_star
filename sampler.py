@@ -16,7 +16,7 @@ def sample_line_to_goal(x0, x_goal):
 
 def sample_ellipse(x0, x_goal, c_best):
     """Direct ellipse sampling from Informed RRT*."""
-    c_min = np.linalg.norm(x_goal - x0)
+    c_min = np.linalg.norm(x_goal[:2] - x0[:2])
     if c_best < c_min:
         c_best = c_min + 1e-6
 
@@ -33,8 +33,10 @@ def sample_ellipse(x0, x_goal, c_best):
     dir_vec = (x_goal - x0) / c_min
     R = np.array([[dir_vec[0], -dir_vec[1]],
                   [dir_vec[1],  dir_vec[0]]])
-
-    return (x0 + x_goal)/2 + R @ local
+    theta = np.random.uniform(-np.pi, np.pi)
+    pos =(x0 + x_goal)/2 + R @ local
+    pos = np.append(pos, theta)
+    return pos
 
 def sample(bounds, x0, x_goal, c_best, path_exists):
     """Implements equation (1) from the paper."""

@@ -15,9 +15,9 @@ def visualize_collision_check():
     
     # Define boat path
     start_pos = np.array([5.0, 5.0])
-    start_heading = 0.0  # Pointing right
-    end_pos = np.array([15.0, 10.0])
-    end_heading = np.pi / 4  # 45 degrees
+    start_heading = np.pi/2  # Pointing up
+    end_pos = np.array([15.0, 5.0])
+    end_heading = 0  # Pointing up
     
     # Define obstacles
     obstacles = [

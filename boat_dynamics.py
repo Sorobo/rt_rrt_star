@@ -2,6 +2,8 @@ from math import tau
 import numpy as np
 from scipy.optimize import minimize
 
+from config import BOAT_LENGTH, BOAT_WIDTH
+
 class MilliAmpere1Sim:
     """
     Simplified milliAmpere1 autonomous ferry simulator.
@@ -32,6 +34,9 @@ class MilliAmpere1Sim:
         self.Yvv = -389.0
         self.Nrr = -1000.0
         
+        self.length = BOAT_LENGTH
+        self.width = BOAT_WIDTH
+        
         
 
         # --- Thruster configuration ---
@@ -45,7 +50,7 @@ class MilliAmpere1Sim:
         self.Tmax = 100.0                               # N per thruster
 
         # --- Controller gains ---
-        self.Kp = np.diag([200, 200, 100])
+        self.Kp = np.diag([200, 200, 200])
         self.Ki = np.diag([0.01, 0.01, 0.01])
         self.Kd = np.diag([1200, 1200, 500])
 
@@ -72,6 +77,29 @@ class MilliAmpere1Sim:
             [0, 0, 1]
         ])
 
+    def get_corners(self):
+        """Return the four corners of the boat in the inertial frame."""
+        # Boat dimensions (half-lengths from center)
+        L_half = self.length / 2  # half length (front/rear thrusters are at ±1.5)
+        W_half = self.width / 2  # half width (thrusters are at ±1.0)
+        
+        # Corner positions in body frame
+        corners_body = np.array([
+            [ L_half,  W_half],  # front-right
+            [ L_half, -W_half],  # front-left
+            [-L_half, -W_half],  # rear-left
+            [-L_half,  W_half]   # rear-right
+        ])
+        
+        # Transform to inertial frame
+        psi = self.x[2]
+        R = np.array([
+            [np.cos(psi), -np.sin(psi)],
+            [np.sin(psi),  np.cos(psi)]
+        ])
+        
+        corners_inertial = (R @ corners_body.T).T + self.x[:2]
+        return corners_inertial
     def damping(self, v):
         """Linear damping force."""
         return np.diag([-self.Xu, -self.Yv, -self.Nr]) @ v
