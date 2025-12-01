@@ -225,6 +225,7 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
     
 def boat_collision_free(start_node, end_node, obstacles, 
                         width=BOAT_WIDTH, length=BOAT_LENGTH):
+    print(end_node.x)
     """
     Check if boat movement from start_node to end_node is collision-free.
     Uses boat dimensions from config if not specified.

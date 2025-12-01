@@ -7,9 +7,9 @@ from tree import Tree
 from rewiring import random_rewire, root_rewire
 from planner import plan_k_steps,greedy_path_to_goal,plan_to_goal
 from collision import line_collision_free,boat_collision_free
-from config import EXPANSION_BUDGET, K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,SAMPLEBOUNDS
+from config import EXPANSION_BUDGET, K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,SAMPLEBOUNDS,WORLD_BOUNDS
 from node_module import Node
-from steer import steer
+from steer import steer,steer_dynamic
 
 class RTRRTStar:
     def __init__(self, bounds, x_start):
@@ -52,12 +52,13 @@ class RTRRTStar:
         while time.perf_counter() - start_time < EXPANSION_BUDGET:
             # Sample
 
-            x_rand = sample(SAMPLEBOUNDS, self.tree.root.x, x_goal,
+            x_rand = sample(WORLD_BOUNDS, self.tree.root.x, x_goal,
                             self.c_best, self.path_exists)
-            
+            print("Sampled point:", x_rand)
+            print("samplepoint lenght",len(x_rand))
             # Nearest
             n_closest = self.tree.nearest_node(x_rand)
-            x_rand = steer(x_rand,n_closest)
+            x_rand = steer_dynamic(n_closest.x, x_rand)
             
             if boat_collision_free(n_closest, Node(x_rand), all_obstacles):
                 near_nodes = self.tree.nearby(x_rand)

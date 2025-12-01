@@ -31,9 +31,35 @@ class Tree:
 
         return self.index.radius_search(x, eps)
 
-    def add_node(self, x_new, n_closest, obstacles):
+    def add_node(self, x_new, n_closest, obstacles, control=None):
+        """
+        Add a new node to the tree.
+        
+        Parameters
+        ----------
+        x_new : np.array
+            New state (can be 2D, 3D, or 6D)
+        n_closest : Node
+            Parent node
+        obstacles : list
+            List of obstacles
+        control : np.array, optional
+            Control input that led to this state
+        
+        Returns
+        -------
+        Node
+            The newly created node
+        """
         n = Node(x_new)
-        n.cost = n_closest.cost + np.linalg.norm(x_new - n_closest.x)
+        
+        # Cost is based on position distance (not full state)
+        n.cost = n_closest.cost + np.linalg.norm(x_new[:2] - n_closest.x[:2])
+        
+        # Store control if provided
+        if control is not None:
+            n.control = control
+        
         n_closest.add_child(n)
         n.parent = n_closest
         self.index.insert(n)

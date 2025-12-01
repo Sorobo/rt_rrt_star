@@ -37,10 +37,6 @@ def random_rewire(tree, queue, obstacles):
                 n_r.add_child(near)
                 near.cost = c_new
                 near.parent = n_r
-                # Update heading based on new parent
-                direction = near.x - n_r.x
-                if np.linalg.norm(direction) > 1e-6:
-                    near.heading = np.arctan2(direction[1], direction[0])
 
 
 def root_rewire(tree, queue, obstacles,path,k=10):
@@ -62,10 +58,6 @@ def root_rewire(tree, queue, obstacles,path,k=10):
                 n_s.add_child(near)
                 near.cost = c_new
                 near.parent = n_s
-                # Update heading based on new parent
-                direction = near.x - n_s.x
-                if np.linalg.norm(direction) > 1e-6:
-                    near.heading = np.arctan2(direction[1], direction[0])
                 queue.append(near)
 
     #queue.clear()

@@ -188,20 +188,32 @@ def draw_root_node(screen, tree):
         x = world_to_screen(root.x)
         pygame.draw.circle(screen, (128, 0, 128), x, 5)  # Bright purple
 
-def draw_sampling_ellipse(screen, c_best, x_start, x_goal):
-    if c_best == float("inf"):
-        return  # No valid path yet
-
-    c_min = np.linalg.norm(x_start - x_goal)
-    if c_best < c_min:
-        return  # Invalid case
-
-    # Ellipse major/minor axes
-    a = c_best / 2.0
-    b = np.sqrt(c_best**2 - c_min**2) / 2.0
+def draw_sampling_ellipse(screen, c_best, x_start, x_goal, path_exists):
+    """Draw the sampling ellipse (informed if path exists, heuristic otherwise)"""
+    
+    c_min = np.linalg.norm(x_start[:2] - x_goal[:2])
+    if path_exists and c_best != float("inf"):
+        # Draw informed ellipse (tighter, based on actual path)
+        if c_best < c_min:
+            return  # Invalid case
+        
+        a = c_best / 2.0
+        b = np.sqrt(c_best**2 - c_min**2) / 2.0
+        color = (0, 255, 255)  # Cyan - informed ellipse
+    else:
+        # Draw heuristic ellipse (broader, even without path)
+        expansion_factor = 1.5
+        c_heuristic = c_min * expansion_factor
+        
+        if c_heuristic <= c_min:
+            c_heuristic = c_min + 1e-6
+        
+        a = c_heuristic / 2.0
+        b = np.sqrt(c_heuristic**2 - c_min**2) / 2.0
+        color = (255, 165, 0)  # Orange - heuristic ellipse
 
     # Ellipse center
-    center = (x_start + x_goal) / 2.0
+    center = (x_start[:2] + x_goal[:2]) / 2.0
 
     # Angle of ellipse
     angle = math.atan2(x_goal[1] - x_start[1], x_goal[0] - x_start[0])
@@ -219,7 +231,7 @@ def draw_sampling_ellipse(screen, c_best, x_start, x_goal):
 
         points.append(world_to_screen(np.array([x_rotated, y_rotated])))
 
-    pygame.draw.lines(screen, (0, 255, 255), True, points, 1)
+    pygame.draw.lines(screen, color, True, points, 2)
 
 def draw_search_radius(screen, tree):
     if tree.root is None:
@@ -251,8 +263,8 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([3, 2,0])
-    x_goal  = np.array([0.8, 0.8,0])
+    x_start = np.array([3, 2,0,0,0,0])
+    x_goal  = np.array([0.8, 0.8,0,0,0,0])
 
     obstacles = [
         (np.array([0.0, 5.0]), 3.0),
@@ -346,13 +358,14 @@ def main():
         # Draw environment
         draw_obstacles(screen, obstacles)
         draw_dynamic_obstacles(screen, dynamic_obstacles)
+        draw_ruler(screen)
         draw_tree(screen, planner.tree)
         draw_path(screen, path)
         draw_boat(screen, boat)
         draw_goal(screen, x_goal)
-        draw_ruler(screen)
+        
         draw_root_node(screen, planner.tree)
-        draw_sampling_ellipse(screen, planner.c_best, planner.tree.root.x, x_goal)
+        draw_sampling_ellipse(screen, planner.c_best, planner.tree.root.x, x_goal, planner.path_exists)
         draw_search_radius(screen, planner.tree)
 
         pygame.display.flip()
