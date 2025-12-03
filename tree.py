@@ -174,10 +174,10 @@ class Tree:
     
     def is_node_blocked(self, all_obstacles,dyn_obstacles, node):
         for obs_center, obs_radius in all_obstacles:
-            if np.linalg.norm(node.x[2:] - obs_center) <=  obs_radius:
+            if np.linalg.norm(node.x[:2] - obs_center) <=  obs_radius:
                 return True
         for dyn_obs in dyn_obstacles:
-            if np.linalg.norm(node.x[2:] - dyn_obs.center) <= dyn_obs.radius+OBSTACLE_BLOCK_RADIUS:
+            if np.linalg.norm(node.x[:2] - dyn_obs.center) <= dyn_obs.radius+OBSTACLE_BLOCK_RADIUS:
                 return True
             
         return False

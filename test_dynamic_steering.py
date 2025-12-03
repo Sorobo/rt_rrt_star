@@ -16,7 +16,7 @@ def test_dynamic_steering():
     # State = [x, y, theta, x_dot, y_dot, theta_dot]
     start_state = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     target_state = np.array([10.0, 5.0, np.pi/4, 0.0, 0.0, 0.0])
-    
+    obstacles = []  # No obstacles for this simple test
     print("Testing Dynamic Steering")
     print("=" * 50)
     print(f"Start state: {start_state}")
@@ -24,7 +24,7 @@ def test_dynamic_steering():
     print("\nComputing optimal control...")
     
     # Compute optimal trajectory
-    final_state, optimal_control = steer_dynamic(start_state, target_state, dt=0.1, horizon=20)
+    final_state, optimal_control = steer_dynamic(start_state, target_state, obstacles, dt=0.1, horizon=20)
     
     print(f"\nOptimal control: {optimal_control}")
     print(f"Final state: {final_state}")

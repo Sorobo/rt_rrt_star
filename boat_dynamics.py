@@ -230,4 +230,71 @@ class MilliAmpere1Sim:
         while np.linalg.norm(self.x[:2] - eta_ref[:2]) > end_dist:
             self.step(eta_ref)
         return np.array(self.traj_eta), np.array(self.traj_ref)
+    
+    # ------------------------------------------------------------------
+    # --- Methods for dynamic steering ---
+    # ------------------------------------------------------------------
+    def simulate_with_control(self, state_6d, control, dt, horizon):
+        """
+        Simulate forward from a 6D state with constant control input.
+        
+        Parameters
+        ----------
+        state_6d : np.array
+            [x, y, theta, u, v, r] - position, heading, velocities
+        control : np.array
+            [tau_x, tau_y, tau_n] - forces and torque in body frame
+        dt : float
+            Time step
+        horizon : int
+            Number of steps to simulate
+        
+        Returns
+        -------
+        final_state : np.array
+            Final 6D state after simulation
+        """
+        # Set state without modifying the object's state
+        eta = state_6d[:3].copy()  # [x, y, theta]
+        nu = state_6d[3:6].copy()  # [u, v, r]
+        
+        tau = control.copy()
+        
+        for _ in range(horizon):
+            eta_dot, nu_dot = self.system_dynamics(eta, nu, tau)
+            eta += eta_dot * dt
+            nu += nu_dot * dt
+            # Normalize angle
+            eta[2] = np.arctan2(np.sin(eta[2]), np.cos(eta[2]))
+        
+        return np.concatenate([eta, nu])
+    
+    @staticmethod
+    def get_max_control_options():
+        """
+        Get predefined maximum control options for steering.
+        
+        Returns
+        -------
+        control_options : list of np.array
+            List of control vectors [tau_x, tau_y, tau_n]
+        """
+        tau_max = 400.0  # Max force in x, y [N]
+        tau_n_max = 600.0  # Max torque [Nm]
+        
+        return [
+            np.array([tau_max, 0.0, 0.0]),           # full forward
+            np.array([-tau_max, 0.0, 0.0]),          # full backward
+            np.array([0.0, tau_max/2, 0.0]),           # full right
+            np.array([0.0, -tau_max/2, 0.0]),          # full left
+            np.array([0.0, 0.0, tau_n_max]),         # full turn right
+            np.array([0.0, 0.0, -tau_n_max]),        # full turn left
+            np.array([tau_max, 0.0, tau_n_max]),     # forward + turn right
+            np.array([tau_max, 0.0, -tau_n_max]),    # forward + turn left
+            np.array([tau_max, tau_max/2, 0.0]),       # forward + right
+            np.array([tau_max, -tau_max/2, 0.0]),      # forward + left
+            np.array([-tau_max, tau_max/2, 0.0]),      # backward + right
+            np.array([-tau_max, -tau_max/2, 0.0]),     # backward + left
+            np.array([0.0, 0.0, 0.0]),               # coast (no control)
+        ]
             

@@ -54,12 +54,12 @@ class RTRRTStar:
 
             x_rand = sample(WORLD_BOUNDS, self.tree.root.x, x_goal,
                             self.c_best, self.path_exists)
-            print("Sampled point:", x_rand)
-            print("samplepoint lenght",len(x_rand))
+            #print("Sampled point:", x_rand)
+            #print("samplepoint lenght",len(x_rand))
             # Nearest
             n_closest = self.tree.nearest_node(x_rand)
-            x_rand = steer_dynamic(n_closest.x, x_rand)
-            
+            x_rand, control = steer_dynamic(n_closest.x, x_rand, all_obstacles,horizon = 5)
+            print("Steered to:", x_rand)
             if boat_collision_free(n_closest, Node(x_rand), all_obstacles):
                 near_nodes = self.tree.nearby(x_rand)
                 if len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
@@ -69,7 +69,7 @@ class RTRRTStar:
                 else:
                     self.Qr.insert(0,n_closest)
             # Rewiring
-            random_rewire(self.tree, self.Qr, all_obstacles)
+            #random_rewire(self.tree, self.Qr, all_obstacles)
         
         if len(self.path) >= 2:
             dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
@@ -79,7 +79,7 @@ class RTRRTStar:
         new_root = self.path[0]
         self.tree.set_root(new_root)
         self.Qs.insert(0, new_root)
-        root_rewire(self.tree, self.Qs, all_obstacles, self.path)
+        #root_rewire(self.tree, self.Qs, all_obstacles, self.path)
 
         # ---- Plan k steps (Algorithm 6) ----
         #self.path = plan_k_steps(self.tree, x_goal,x_agent)

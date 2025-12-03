@@ -212,6 +212,7 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
         if sat_polygon_circle(hull_vertices, center, radius):
             return False  # Collision detected
     # Check if the hull is within world bounds
+    
     if np.any(hull_vertices[:, 0] < WORLD_BOUNDS[0][0]) or np.any(hull_vertices[:, 0] > WORLD_BOUNDS[0][1]) or \
        np.any(hull_vertices[:, 1] < WORLD_BOUNDS[1][0]) or np.any(hull_vertices[:, 1] > WORLD_BOUNDS[1][1]):
         return False  # Hull is out of bounds
@@ -253,6 +254,15 @@ def boat_collision_free(start_node, end_node, obstacles,
     start_heading = start_node.x[2]
     end_pos = end_node.x[:2]
     end_heading = end_node.x[2]
+    
+    
+    # Check if speeds are within bounds
+    if end_node.x[3] < WORLD_BOUNDS[3][0] or end_node.x[3] > WORLD_BOUNDS[3][1]:
+        return False
+    if end_node.x[4] < WORLD_BOUNDS[4][0] or end_node.x[4] > WORLD_BOUNDS[4][1]:
+        return False
+    if end_node.x[5] < WORLD_BOUNDS[5][0] or end_node.x[5] > WORLD_BOUNDS[5][1]:
+        return False
     
     return boat_path_collision_free(start_pos, start_heading, 
                                     end_pos, end_heading,

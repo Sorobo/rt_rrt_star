@@ -41,7 +41,7 @@ WORLD_BOUNDS = np.array([[0, 30],
                          [0, 30],
                          [-np.pi, np.pi],
                          [-1, 1],
-                         [-0.5, 0.5],
+                         [-1, 1],
                          [-1, 1]])  # x, y, theta, vx, vy, omega
 SAMPLEBOUNDS = WORLD_BOUNDS.copy()
 SAMPLEBOUNDS[0][0]+= boat_minimum_dimensium/2

@@ -263,7 +263,7 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([3, 2,0,0,0,0])
+    x_start = np.array([10, 10,0,0,0,0])
     x_goal  = np.array([0.8, 0.8,0,0,0,0])
 
     obstacles = [
@@ -296,7 +296,8 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(15, 0.7, 7)
+    obstacles = generate_obstacles(0, 0.7, 1)
+    #obstacles = np.array([15,15,1.5])
     # Initialize dynamic obstacles
     dynamic_obstacles = [
         #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
@@ -326,7 +327,7 @@ def main():
                 # Convert screen to world
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
-                x_goal = np.array([wx, wy, np.pi/2], dtype=float)
+                x_goal = np.array([wx, wy, np.pi/2,0,0,0], dtype=float)
                 print(f"New goal: {x_goal}")
             # Right-click to add obstacle
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -346,7 +347,9 @@ def main():
         if len(path) > 1:
             next_node = path[0]
             print("Next node:", next_node.x)
-            boat.step(next_node.x)
+            # Extract only position and heading for the boat controller
+            eta_ref = next_node.x[:3]  # [x, y, theta]
+            boat.step(eta_ref)
             x_agent = boat.x[:2]
 
         # Re-root the tree every second
