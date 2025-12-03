@@ -7,8 +7,8 @@ ALPHA = 0.4    # probability of sampling along line to goal
 BETA = 1         # controls mix of uniform vs ellipse sampling
 
 # Tree density
-K_MAX = 15         # max neighbors for rewiring
-R_S = 0.3          # minimum spacing between nodes
+K_MAX = 30         # max neighbors for rewiring
+R_S = 0.3         # minimum spacing between nodes
 STEP_SIZE = 0.5  # maximum distance for extending the tree
 
 # Environment/obstacles
@@ -37,8 +37,8 @@ USE_DYNAMIC_STEERING = True  # Set to True to use dynamic steering with 6D state
 DYNAMIC_DT = 0.1  # Time step for dynamic simulation [s]
 DYNAMIC_HORIZON = 10  # Number of steps to simulate ahead
 #World bounds
-WORLD_BOUNDS = np.array([[0, 30],
-                         [0, 30],
+WORLD_BOUNDS = np.array([[0, 10],
+                         [0, 10],
                          [-np.pi, np.pi],
                          [-1, 1],
                          [-1, 1],

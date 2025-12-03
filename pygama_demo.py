@@ -14,7 +14,7 @@ from dynamic_obstacle import DynamicObstacle
 # ---------------------------
 
 SCREEN_SIZE = 800
-FPS = 60
+FPS = 30
 
 
 
@@ -263,8 +263,8 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([10, 10,0,0,0,0])
-    x_goal  = np.array([0.8, 0.8,0,0,0,0])
+    x_start = np.array([5, 5,0,0,0,0])
+    x_goal  = np.array([5, 5,0,0,0,0])
 
     obstacles = [
         (np.array([0.0, 5.0]), 3.0),
@@ -296,7 +296,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(15, 0.7, 1)
+    obstacles = generate_obstacles(0, 0.7, 1)
     #obstacles = np.array([15,15,1.5])
     # Initialize dynamic obstacles
     dynamic_obstacles = [
@@ -326,7 +326,7 @@ def main():
                 # Convert screen to world
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
-                x_goal = np.array([wx, wy, np.pi/2,0,0,0], dtype=float)
+                x_goal = np.array([wx, wy, 0,0,0,0], dtype=float)
             # Right-click to add obstacle
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 mx, my = event.pos

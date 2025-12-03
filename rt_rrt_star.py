@@ -69,7 +69,7 @@ class RTRRTStar:
             
             if collision_free:
                 near_nodes = self.tree.nearby(x_rand)
-                if len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
+                if True: #len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
                     # Add node
                     new_node = self.tree.add_node(x_rand, n_closest, all_obstacles)
                     self.Qr.insert(0, new_node)
@@ -83,7 +83,7 @@ class RTRRTStar:
                     n_closest.ineligible = True
             
             # Rewiring
-            random_rewire(self.tree, self.Qr, all_obstacles)
+            #random_rewire(self.tree, self.Qr, all_obstacles)
         
         if len(self.path) >= 2:
             dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
@@ -93,7 +93,7 @@ class RTRRTStar:
         new_root = self.path[0]
         self.tree.set_root(new_root)
         self.Qs.insert(0, new_root)
-        root_rewire(self.tree, self.Qs, all_obstacles, self.path)
+        #root_rewire(self.tree, self.Qs, all_obstacles, self.path)
 
         # ---- Plan k steps (Algorithm 6) ----
         #self.path = plan_k_steps(self.tree, x_goal,x_agent)

@@ -286,16 +286,16 @@ class MilliAmpere1Sim:
             np.array([-tau_max, 0.0, 0.0]),          # full backward
             np.array([0.0, tau_max, 0.0]),           # full right
             np.array([0.0, -tau_max, 0.0]),          # full left
-            np.array([0.0, 0.0, tau_n_max]),         # full turn right
-            np.array([0.0, 0.0, -tau_n_max]),        # full turn left
-            np.array([tau_max, 0.0, tau_n_max]),     # forward + turn right
-            np.array([tau_max, 0.0, -tau_n_max]), 
-            np.array([0, tau_max, -tau_n_max]),      # forward + turn left
-            np.array([0, -tau_max, tau_n_max]),      # backward + turn right
-            np.array([tau_max, tau_max, 0.0]),       # forward + right
-            np.array([tau_max, -tau_max, 0.0]),      # forward + left
-            np.array([-tau_max, tau_max, 0.0]),      # backward + right
-            np.array([-tau_max, -tau_max, 0.0]),     # backward + left
+            #np.array([0.0, 0.0, tau_n_max]),         # full turn right
+            #np.array([0.0, 0.0, -tau_n_max]),        # full turn left
+            #np.array([tau_max, 0.0, tau_n_max]),     # forward + turn right
+            #np.array([tau_max, 0.0, -tau_n_max]), 
+            #np.array([0, tau_max, -tau_n_max]),      # forward + turn left
+            #np.array([0, -tau_max, tau_n_max]),      # backward + turn right
+            np.array([tau_max/np.sqrt(2), tau_max/np.sqrt(2), 0.0]),       # forward + right
+            np.array([tau_max/np.sqrt(2), -tau_max/np.sqrt(2), 0.0]),      # forward + left
+            np.array([-tau_max/np.sqrt(2), tau_max/np.sqrt(2), 0.0]),      # backward + right
+            np.array([-tau_max/np.sqrt(2), -tau_max/np.sqrt(2), 0.0]),     # backward + left
             np.array([0.0, 0.0, 0.0]),               # coast (no control)
         ]
             

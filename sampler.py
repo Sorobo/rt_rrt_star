@@ -122,7 +122,7 @@ def sample(bounds, x0, x_goal, c_best, path_exists):
     - Remaining: ellipse sampling (heuristic if no path, informed if path exists)
     """
     Pr = random.random()
-
+    return sample_uniform(bounds)
     # Sample along line to goal
     if Pr > 1 - ALPHA:
         return sample_line_to_goal(x0, x_goal)
