@@ -170,6 +170,28 @@ def draw_agent_and_goal(screen, x_agent, x_goal):
 def draw_goal(screen, x_goal):
     gx, gy = world_to_screen(x_goal)
     pygame.draw.circle(screen, COLOR_GOAL, (gx, gy), 6)
+    
+    # Draw heading arrow if goal has heading information
+    if len(x_goal) >= 3:
+        heading = x_goal[2]
+        arrow_len = 20  # Length in screen pixels
+        end_x = gx + arrow_len * math.cos(heading)
+        end_y = gy - arrow_len * math.sin(heading)  # Flip y for pygame
+        
+        # Draw main arrow line
+        pygame.draw.line(screen, COLOR_GOAL, (gx, gy), (int(end_x), int(end_y)), 3)
+        
+        # Draw arrowhead
+        arrow_head_len = 8
+        arrow_angle = math.pi / 6
+        
+        p1 = (int(end_x - arrow_head_len * math.cos(heading - arrow_angle)),
+              int(end_y + arrow_head_len * math.sin(heading - arrow_angle)))
+        p2 = (int(end_x - arrow_head_len * math.cos(heading + arrow_angle)),
+              int(end_y + arrow_head_len * math.sin(heading + arrow_angle)))
+        
+        pygame.draw.line(screen, COLOR_GOAL, (int(end_x), int(end_y)), p1, 3)
+        pygame.draw.line(screen, COLOR_GOAL, (int(end_x), int(end_y)), p2, 3)
 
 def draw_ruler(screen):
     # Draw vertical grid lines
@@ -236,7 +258,7 @@ def generate_obstacles(num_obstacles, min_radius, max_radius):
         y = np.random.uniform(WORLD_BOUNDS[1, 0], WORLD_BOUNDS[1, 1])
         radius = np.random.uniform(min_radius, max_radius)
         # Skip obstacles in bottom left corner (x < 7 and y < 7)
-        if x < 7 and y < 7:
+        if x < 13 and y < 7:
             continue
         obstacles.append((np.array([x, y]), radius))
         
@@ -251,7 +273,7 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([3, 2,0])
+    x_start = np.array([5, 2,0])
     x_goal  = np.array([0.8, 0.8,0])
 
     obstacles = [
@@ -284,7 +306,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(15, 0.7, 7)
+    obstacles = generate_obstacles(40, 0.1, 0.5)
     # Initialize dynamic obstacles
     dynamic_obstacles = [
         #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
@@ -297,6 +319,10 @@ def main():
     x_agent = boat.x
     print("Starting RT-RRT* demo. Close window to exit.",x_agent)
     running = True
+    
+    # Goal setting state
+    dragging_goal = False
+    goal_start_pos = None
 
     while running:
         dt = clock.tick(FPS) / 1000.0  # seconds per frame
@@ -308,14 +334,36 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            # Optional: left-click to move goal
+            # Left-click and drag to set goal position and direction
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
                 # Convert screen to world
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
-                x_goal = np.array([wx, wy, np.pi/2], dtype=float)
-                print(f"New goal: {x_goal}")
+                goal_start_pos = np.array([wx, wy])
+                dragging_goal = True
+            
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if dragging_goal and goal_start_pos is not None:
+                    mx, my = pygame.mouse.get_pos()
+                    # Convert screen to world
+                    wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
+                    wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
+                    goal_end_pos = np.array([wx, wy])
+                    
+                    # Calculate direction from drag vector
+                    drag_vector = goal_end_pos - goal_start_pos
+                    if np.linalg.norm(drag_vector) > 0.1:  # Minimum drag distance
+                        heading = np.arctan2(drag_vector[1], drag_vector[0])
+                    else:
+                        heading = np.pi/2  # Default heading if no drag
+                    
+                    x_goal = np.array([goal_start_pos[0], goal_start_pos[1], heading], dtype=float)
+                    print(f"New goal: position=({x_goal[0]:.2f}, {x_goal[1]:.2f}), heading={np.degrees(heading):.1f}°")
+                
+                dragging_goal = False
+                goal_start_pos = None
+            
             # Right-click to add obstacle
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 mx, my = event.pos
@@ -331,11 +379,11 @@ def main():
 
         # Move boat along path (if there is at least 1 step ahead)
         
-        if len(path) > 1:
+        if len(path) >= 1:
             next_node = path[0]
             print("Next node:", next_node.x)
             boat.step(next_node.x)
-            x_agent = boat.x[:2]
+            x_agent = boat.x[:3]
 
         # Re-root the tree every second
         # ---------------------------
@@ -354,6 +402,32 @@ def main():
         draw_root_node(screen, planner.tree)
         draw_sampling_ellipse(screen, planner.c_best, planner.tree.root.x, x_goal)
         draw_search_radius(screen, planner.tree)
+        
+        # Draw goal direction preview while dragging
+        if dragging_goal and goal_start_pos is not None:
+            mx, my = pygame.mouse.get_pos()
+            wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
+            wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
+            
+            start_screen = world_to_screen(goal_start_pos)
+            end_screen = world_to_screen(np.array([wx, wy]))
+            
+            # Draw arrow from start to current mouse position
+            pygame.draw.line(screen, (255, 255, 0), start_screen, end_screen, 3)
+            pygame.draw.circle(screen, (255, 255, 0), start_screen, 8, 2)
+            
+            # Draw arrowhead
+            angle = math.atan2(end_screen[1] - start_screen[1], end_screen[0] - start_screen[0])
+            arrow_len = 15
+            arrow_angle = math.pi / 6
+            
+            p1 = (end_screen[0] - arrow_len * math.cos(angle - arrow_angle),
+                  end_screen[1] - arrow_len * math.sin(angle - arrow_angle))
+            p2 = (end_screen[0] - arrow_len * math.cos(angle + arrow_angle),
+                  end_screen[1] - arrow_len * math.sin(angle + arrow_angle))
+            
+            pygame.draw.line(screen, (255, 255, 0), end_screen, p1, 3)
+            pygame.draw.line(screen, (255, 255, 0), end_screen, p2, 3)
 
         pygame.display.flip()
 

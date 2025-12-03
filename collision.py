@@ -92,8 +92,11 @@ def create_swept_hull(start_pos, start_heading, end_pos, end_heading, width, len
     # Get corners at end position
     end_corners = get_boat_corners(end_pos, end_heading, width, length)
     
-    # Combine all 8 points
-    all_points = np.vstack([start_corners, end_corners])
+    mid_pos = (start_pos + end_pos) / 2
+    mid_heading = (start_heading + end_heading) / 2
+    mid_corners = get_boat_corners(mid_pos, mid_heading, width, length)
+    # Combine all 12 points
+    all_points = np.vstack([start_corners, end_corners, mid_corners])
     
     # Compute convex hull
     hull = ConvexHull(all_points)

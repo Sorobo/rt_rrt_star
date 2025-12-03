@@ -20,8 +20,8 @@ class MilliAmpere1Sim:
         self.dt = dt
 
         # --- Physical parameters ---
-        self.m = 1800.0         # mass [kg]
-        self.Iz = 4860.0        # yaw inertia [kg m^2]
+        self.m = 200.0         # mass [kg] skal være 1800
+        self.Iz = 1000        # yaw inertia [kg m^2] skal være 4860
         self.Xu_dot = -215.0
         self.Yv_dot = -1252.0
         self.Nr_dot = -3500.0
@@ -52,7 +52,7 @@ class MilliAmpere1Sim:
         # --- Controller gains ---
         self.Kp = np.diag([200, 200, 200])
         self.Ki = np.diag([0.01, 0.01, 0.01])
-        self.Kd = np.diag([1200, 1200, 500])
+        self.Kd = np.diag([600, 600, 300])
 
         # --- State vectors ---
         self.x = np.zeros(3)#start_pos  # [x, y, psi]

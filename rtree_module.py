@@ -29,7 +29,7 @@ class RTreeSpatialIndex:
         x, y,theta = float(node.x[0]), float(node.x[1]), float(node.x[2])
 
         # Rtree requires bounding boxes (minx, miny, maxx, maxy)
-        bbox = (x, y, theta, x, y, theta)
+        bbox = (x, y, theta*5, x, y, theta*5)
 
         self.idx.insert(nid, bbox)
         self.nodes[nid] = node
@@ -39,7 +39,7 @@ class RTreeSpatialIndex:
         """Remove a node from the spatial index."""
         nid = node._rtree_id
         x, y, theta = float(node.x[0]), float(node.x[1]), float(node.x[2])
-        bbox = (x, y, theta, x, y, theta)
+        bbox = (x, y, theta*5, x, y, theta*5)
         self.idx.delete(nid, bbox)
         del self.nodes[nid]
 
@@ -49,7 +49,7 @@ class RTreeSpatialIndex:
         point is np.array([x,y])
         """
         x, y, theta = float(point[0]), float(point[1]), float(point[2])
-        results = list(self.idx.nearest((x, y, theta, x, y, theta), k))
+        results = list(self.idx.nearest((x, y, theta*5, x, y, theta*5), k))
 
         return [self.nodes[i] for i in results]
 
@@ -58,7 +58,7 @@ class RTreeSpatialIndex:
         Return all nodes within a given radius.
         """
         x, y, theta = float(point[0]), float(point[1]), float(point[2])
-        bbox = (x - radius, y - radius, theta - radius, x + radius, y + radius, theta + radius)
+        bbox = (x - radius, y - radius, theta*5 - radius, x + radius, y + radius, theta*5 + radius)
 
         # this gives bounding box candidates; we check distance manually
         candidates = self.idx.intersection(bbox)
