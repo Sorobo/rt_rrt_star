@@ -20,6 +20,7 @@ class Node:
         self.children = []
         self.cost = 0.0      # cost-to-reach
         self.blocked = False
+        self.ineligible = False  # True if all dynamic trajectories lead to collision
         
         # Store control input that led to this state (for dynamic steering)
         self.control = None

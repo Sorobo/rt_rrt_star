@@ -1,0 +1,22 @@
+{
+  "best_params": {
+    "position_weight": 1.4505404085706544,
+    "heading_weight": 0.5284960617265291,
+    "velocity_weight": 0.3672427280240383,
+    "progress_weight": 3.1953709987062293
+  },
+  "best_score": 0.25968262500100536,
+  "all_results": [
+    {
+      "score": 0.37399000004370464,
+      "success_rate": 1.0,
+      "avg_convergence_time": 0.07479800000874093,
+      "avg_path_length": 0.0,
+      "scenario_results": [
+        {
+          "success": true,
+          "convergence_time": 0.05490340001415461,
+          "final_path_length": 0,
+          "min_path_length": 0,
+          "iterations": 97,
+          "reached_goal": 

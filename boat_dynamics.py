@@ -50,7 +50,7 @@ class MilliAmpere1Sim:
         self.Tmax = 100.0                               # N per thruster
 
         # --- Controller gains ---
-        self.Kp = np.diag([200, 200, 200])
+        self.Kp = np.diag([400, 400, 400])
         self.Ki = np.diag([0.01, 0.01, 0.01])
         self.Kd = np.diag([1200, 1200, 500])
 
@@ -207,7 +207,6 @@ class MilliAmpere1Sim:
         end_time = 20
         end_steps = int(end_time / self.dt)
         for _ in range(end_steps):
-            print(np.linalg.norm(self.x[:2] - eta_ref[:2]))
             self.step(eta_ref)
         return np.array(self.traj_eta), np.array(self.traj_ref)
     
@@ -279,22 +278,24 @@ class MilliAmpere1Sim:
         control_options : list of np.array
             List of control vectors [tau_x, tau_y, tau_n]
         """
-        tau_max = 400.0  # Max force in x, y [N]
-        tau_n_max = 600.0  # Max torque [Nm]
+        tau_max = 200.0  # Max force in x, y [N]
+        tau_n_max = 6000.0  # Max torque [Nm]
         
         return [
             np.array([tau_max, 0.0, 0.0]),           # full forward
             np.array([-tau_max, 0.0, 0.0]),          # full backward
-            np.array([0.0, tau_max/2, 0.0]),           # full right
-            np.array([0.0, -tau_max/2, 0.0]),          # full left
+            np.array([0.0, tau_max, 0.0]),           # full right
+            np.array([0.0, -tau_max, 0.0]),          # full left
             np.array([0.0, 0.0, tau_n_max]),         # full turn right
             np.array([0.0, 0.0, -tau_n_max]),        # full turn left
             np.array([tau_max, 0.0, tau_n_max]),     # forward + turn right
-            np.array([tau_max, 0.0, -tau_n_max]),    # forward + turn left
-            np.array([tau_max, tau_max/2, 0.0]),       # forward + right
-            np.array([tau_max, -tau_max/2, 0.0]),      # forward + left
-            np.array([-tau_max, tau_max/2, 0.0]),      # backward + right
-            np.array([-tau_max, -tau_max/2, 0.0]),     # backward + left
+            np.array([tau_max, 0.0, -tau_n_max]), 
+            np.array([0, tau_max, -tau_n_max]),      # forward + turn left
+            np.array([0, -tau_max, tau_n_max]),      # backward + turn right
+            np.array([tau_max, tau_max, 0.0]),       # forward + right
+            np.array([tau_max, -tau_max, 0.0]),      # forward + left
+            np.array([-tau_max, tau_max, 0.0]),      # backward + right
+            np.array([-tau_max, -tau_max, 0.0]),     # backward + left
             np.array([0.0, 0.0, 0.0]),               # coast (no control)
         ]
             

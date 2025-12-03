@@ -15,6 +15,23 @@ def steer(x_rand, n_closest):
         return n_closest.x[:2] + (direction / distance) * STEP_SIZE
 
 
+# Global cost function weights (optimized via automated tuning - 2025-12-03)
+COST_WEIGHTS = {
+    'position_weight': 15.116731097089193,
+    'heading_weight': 3.443507809982464,
+    'velocity_weight': 0.5126958016989883,
+    'progress_weight': 4.749025576411771
+}
+
+def set_cost_weights(**kwargs):
+    """Update cost function weights for parameter tuning"""
+    global COST_WEIGHTS
+    COST_WEIGHTS.update(kwargs)
+
+def get_cost_weights():
+    """Get current cost function weights"""
+    return COST_WEIGHTS.copy()
+
 def steer_dynamic(start_state, target_state, obstacles, dt=0.1, horizon=10):
     """
     Dynamic steering using MilliAmpere1Sim boat dynamics.
@@ -76,9 +93,13 @@ def steer_dynamic(start_state, target_state, obstacles, dt=0.1, horizon=10):
         progress = start_distance - final_distance  # positive if we got closer
         
         # Weighted cost (minimize = better)
-        # Position error is dominant, then heading, then velocity
-        # Subtract progress to reward forward motion
-        total_cost = 10.0 * pos_error + 2.0 * heading_error + 0.1 * vel_error - 5.0 * progress
+        # Use global weights (can be tuned)
+        total_cost = (
+            COST_WEIGHTS['position_weight'] * pos_error +
+            COST_WEIGHTS['heading_weight'] * heading_error +
+            COST_WEIGHTS['velocity_weight'] * vel_error -
+            COST_WEIGHTS['progress_weight'] * progress
+        )
         
         return total_cost
     

@@ -12,9 +12,9 @@ from node_module import Node
 from steer import steer,steer_dynamic
 
 class RTRRTStar:
-    def __init__(self, bounds, x_start):
+    def __init__(self, bounds, x_start, rtree_weights=None):
         self.bounds = bounds
-        self.tree = Tree(x_start)
+        self.tree = Tree(x_start, rtree_weights=rtree_weights)
         self.c_best = np.inf
         self.path_exists = False
         self.path = [self.tree.root]
@@ -54,13 +54,20 @@ class RTRRTStar:
 
             x_rand = sample(WORLD_BOUNDS, self.tree.root.x, x_goal,
                             self.c_best, self.path_exists)
-            #print("Sampled point:", x_rand)
-            #print("samplepoint lenght",len(x_rand))
+
             # Nearest
             n_closest = self.tree.nearest_node(x_rand)
+            
+            # Skip if nearest node is ineligible
+            if n_closest.ineligible:
+                continue
+            
             x_rand, control = steer_dynamic(n_closest.x, x_rand, all_obstacles,horizon = 5)
-            print("Steered to:", x_rand)
-            if boat_collision_free(n_closest, Node(x_rand), all_obstacles):
+            
+            # Check if steered state is collision-free
+            collision_free = boat_collision_free(n_closest, Node(x_rand), all_obstacles)
+            
+            if collision_free:
                 near_nodes = self.tree.nearby(x_rand)
                 if len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
                     # Add node
@@ -68,18 +75,25 @@ class RTRRTStar:
                     self.Qr.insert(0, new_node)
                 else:
                     self.Qr.insert(0,n_closest)
+            else:
+                # Mark node as ineligible if steering always leads to collision
+                # This happens when all control options result in collision
+                n_closest.collision_attempts = getattr(n_closest, 'collision_attempts', 0) + 1
+                if n_closest.collision_attempts >= 5:  # After multiple failures
+                    n_closest.ineligible = True
+            
             # Rewiring
-            #random_rewire(self.tree, self.Qr, all_obstacles)
+            random_rewire(self.tree, self.Qr, all_obstacles)
         
         if len(self.path) >= 2:
             dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
-            if dist < R_S*2:
+            if dist < R_S*1.5:
                 self.path.pop(0)
 
         new_root = self.path[0]
         self.tree.set_root(new_root)
         self.Qs.insert(0, new_root)
-        #root_rewire(self.tree, self.Qs, all_obstacles, self.path)
+        root_rewire(self.tree, self.Qs, all_obstacles, self.path)
 
         # ---- Plan k steps (Algorithm 6) ----
         #self.path = plan_k_steps(self.tree, x_goal,x_agent)
@@ -90,6 +104,5 @@ class RTRRTStar:
         
         self.c_best = self.tree.cost(self.path[-1]) if len(self.path) > 0 else np.inf
         self.path_exists = len(self.path) > 0
-        print("number of nodes:",len(self.tree.index.nodes))
         return self.path
         

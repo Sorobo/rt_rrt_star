@@ -296,7 +296,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(0, 0.7, 1)
+    obstacles = generate_obstacles(15, 0.7, 1)
     #obstacles = np.array([15,15,1.5])
     # Initialize dynamic obstacles
     dynamic_obstacles = [
@@ -308,7 +308,6 @@ def main():
     planner = RTRRTStar(WORLD_BOUNDS, x_start)
     boat = MilliAmpere1Sim(x_start)
     x_agent = boat.x
-    print("Starting RT-RRT* demo. Close window to exit.",x_agent)
     running = True
 
     while running:
@@ -328,7 +327,6 @@ def main():
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
                 x_goal = np.array([wx, wy, np.pi/2,0,0,0], dtype=float)
-                print(f"New goal: {x_goal}")
             # Right-click to add obstacle
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 mx, my = event.pos
@@ -336,7 +334,6 @@ def main():
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
                 obstacles.append((np.array([wx, wy], dtype=float), 1.0))
-                print(f"Added obstacle at: ({wx:.2f}, {wy:.2f})")
         # ---------------------------
         # RT-RRT* planning step
         # ---------------------------
@@ -346,7 +343,6 @@ def main():
         
         if len(path) > 1:
             next_node = path[0]
-            print("Next node:", next_node.x)
             # Extract only position and heading for the boat controller
             eta_ref = next_node.x[:3]  # [x, y, theta]
             boat.step(eta_ref)

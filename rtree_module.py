@@ -8,7 +8,7 @@ class RTreeSpatialIndex:
     Stores node bounding boxes in an R-tree.
     """
 
-    def __init__(self, position_weight=1.0, heading_weight=1, velocity_weight=5):
+    def __init__(self, position_weight=1.236419622324547, heading_weight=0.6354020598780094, velocity_weight=0.07613411694792964):
         # Rtree configuration
         p = index.Property()
         p.dimension = 6  # 6D space (x, y, theta, x_dot, y_dot, theta_dot)

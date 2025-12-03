@@ -125,20 +125,16 @@ def sample(bounds, x0, x_goal, c_best, path_exists):
 
     # Sample along line to goal
     if Pr > 1 - ALPHA:
-        print("line to goal sampling")
         return sample_line_to_goal(x0, x_goal)
 
     # Uniform sampling
     if Pr <= (1 - ALPHA) / BETA:
-        print("uniform sampling")
         return sample_uniform(bounds)
 
     # Ellipse sampling
     if path_exists:
         # Use informed ellipse with actual path cost
-        print("informed ellipse sampling")
         return sample_ellipse(x0, x_goal, c_best,bounds)
     else:
         # Use heuristic ellipse even without a path
-        print("heuristic ellipse sampling")
         return sample_ellipse_heuristic(x0, x_goal,bounds, expansion_factor=1.5)

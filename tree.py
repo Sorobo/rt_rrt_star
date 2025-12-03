@@ -10,13 +10,25 @@ from config import K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,WORLD_AREA,STEP_SIZE
 from rtree_module import RTreeSpatialIndex
 
 class Tree:
-    def __init__(self, x0):
+    def __init__(self, x0, rtree_weights=None):
         self.root = Node(x0)
-        self.index = RTreeSpatialIndex()
+        if rtree_weights:
+            self.index = RTreeSpatialIndex(**rtree_weights)
+        else:
+            self.index = RTreeSpatialIndex()
         self.index.insert(self.root)
         self.root.parent = None
 
-    def nearest_node(self, x):
+    def nearest_node(self, x, skip_ineligible=True):
+        """Find nearest node, optionally skipping ineligible nodes"""
+        if skip_ineligible:
+            # Search for multiple candidates and return first eligible one
+            candidates = self.index.nearest(x, k=10)
+            for candidate in candidates:
+                if not candidate.ineligible:
+                    return candidate
+            # If all are ineligible, return the nearest anyway (fallback)
+            return candidates[0] if candidates else self.root
         return self.index.nearest(x, k=1)[0]
         
 
@@ -26,10 +38,14 @@ class Tree:
         
         return min(max(R_S, np.sqrt(area * K_MAX / (np.pi * len(self.index.nodes)))),STEP_SIZE*5)
 
-    def nearby(self, x):
+    def nearby(self, x, skip_ineligible=True):
+        """Find nearby nodes, optionally filtering out ineligible ones"""
         eps = self.neighbor_radius()
-
-        return self.index.radius_search(x, eps)
+        nodes = self.index.radius_search(x, eps)
+        
+        if skip_ineligible:
+            return [n for n in nodes if not n.ineligible]
+        return nodes
 
     def add_node(self, x_new, n_closest, obstacles, control=None):
         """
@@ -51,10 +67,11 @@ class Tree:
         Node
             The newly created node
         """
+        from rewiring import dynamic_cost_heuristic
         n = Node(x_new)
         
-        # Cost is based on position distance (not full state)
-        n.cost = n_closest.cost + np.linalg.norm(x_new[:2] - n_closest.x[:2])
+        # Use dynamic cost heuristic instead of simple distance
+        n.cost = n_closest.cost + dynamic_cost_heuristic(n_closest, n)
         
         # Store control if provided
         if control is not None:
@@ -109,22 +126,24 @@ class Tree:
         
     def _update_costs_from_root(self):
         from collections import deque
+        from rewiring import dynamic_cost_heuristic
         queue = deque([self.root])
         self.root.cost = 0.0
 
         while queue:
             node = queue.popleft()
             for child in node.children:
-                child.cost = self.cost(node) + np.linalg.norm(child.x - node.x)
+                child.cost = self.cost(node) + dynamic_cost_heuristic(node, child)
                 queue.append(child)
 
 
     def cost(self, node):
+        from rewiring import dynamic_cost_heuristic
         if node.parent is None:
             return node.cost
         if node.blocked:
             return float("inf")
-        return node.parent.cost + np.linalg.norm(node.x - node.parent.x)
+        return node.parent.cost + dynamic_cost_heuristic(node.parent, node)
     
     def block_nodes_near_obstacle(self, obstacle_center, block_radius):
         """
@@ -165,10 +184,11 @@ class Tree:
                         break
                 
                 if not still_blocked:
+                    from rewiring import dynamic_cost_heuristic
                     node.blocked = False
                     # Recompute cost from parent
                     if node.parent and node.parent.cost != float("inf"):
-                        node.cost = node.parent.cost + np.linalg.norm(node.x - node.parent.x)
+                        node.cost = node.parent.cost + dynamic_cost_heuristic(node.parent, node)
                     else:
                         node.cost = float("inf")
     
