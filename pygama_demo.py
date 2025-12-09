@@ -306,7 +306,7 @@ def main():
         (np.array([4, 6]), 1.0)
     ]
 
-    obstacles = generate_obstacles(40, 0.1, 0.5)
+    obstacles = generate_obstacles(5, 0.1, 0.5)
     # Initialize dynamic obstacles
     dynamic_obstacles = [
         #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
