@@ -6,8 +6,8 @@ from sampler import sample
 from tree import Tree
 from rewiring import random_rewire, root_rewire
 from planner import plan_k_steps,greedy_path_to_goal,plan_to_goal
-from collision import line_collision_free
-from config import EXPANSION_BUDGET, K_MAX, R_S, OBSTACLE_BLOCK_RADIUS
+from collision import line_collision_free,boat_collision_free
+from config import EXPANSION_BUDGET, K_MAX, R_S, OBSTACLE_BLOCK_RADIUS,SAMPLEBOUNDS
 from node_module import Node
 from steer import steer
 
@@ -52,14 +52,14 @@ class RTRRTStar:
         while time.perf_counter() - start_time < EXPANSION_BUDGET:
             # Sample
 
-            x_rand = sample(self.bounds, self.tree.root.x, x_goal,
+            x_rand = sample(SAMPLEBOUNDS, self.tree.root.x, x_goal,
                             self.c_best, self.path_exists)
             
             # Nearest
             n_closest = self.tree.nearest_node(x_rand)
             x_rand = steer(x_rand,n_closest)
             
-            if line_collision_free(n_closest.x, x_rand, all_obstacles):
+            if boat_collision_free(n_closest, Node(x_rand), all_obstacles):
                 near_nodes = self.tree.nearby(x_rand)
                 if len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
                     # Add node
@@ -71,10 +71,13 @@ class RTRRTStar:
             random_rewire(self.tree, self.Qr, all_obstacles)
         
         if len(self.path) >= 2:
-            dist = np.linalg.norm(self.path[0].x - x_agent)
-            if dist < R_S/2:
+            pos_dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
+            angle_diff = abs(self.path[0].x[2] - x_agent[2])
+            angle_diff = min(angle_diff, 2*np.pi - angle_diff)  # wrap around
+            dist = pos_dist + angle_diff
+            if dist < R_S*2:
                 self.path.pop(0)
-                print("pop")
+
         new_root = self.path[0]
         self.tree.set_root(new_root)
         self.Qs.insert(0, new_root)
@@ -89,5 +92,6 @@ class RTRRTStar:
         
         self.c_best = self.tree.cost(self.path[-1]) if len(self.path) > 0 else np.inf
         self.path_exists = len(self.path) > 0
+        print("number of nodes:",len(self.tree.index.nodes))
         return self.path
         
