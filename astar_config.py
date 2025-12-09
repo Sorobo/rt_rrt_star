@@ -60,4 +60,4 @@ OBSTACLE_INFLATION = 0.2  # meters - safety margin around obstacles
 SHOW_CLOSED_NODES = True  # Show explored nodes
 SHOW_OPEN_NODES = True    # Show nodes in open set
 SHOW_CURRENT_NODE = True  # Highlight current node being expanded
-MAX_NODES_TO_DRAW = 3000  # Limit nodes drawn for performance (reduced for better FPS)
+MAX_NODES_TO_DRAW = 30000  # Limit nodes drawn for performance (reduced for better FPS)

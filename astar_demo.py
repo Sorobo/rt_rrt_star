@@ -181,7 +181,7 @@ def main():
     x_start = np.array([5.0, 5.0, 0.0])
     x_goal = np.array([25.0, 25.0, np.pi/4])
     
-    obstacles = generate_obstacles(10, 1.0, 2.5)
+    obstacles = generate_obstacles(0, 1.0, 2.5)
     
     boat = MilliAmpere1Sim(np.append(x_start, [0.0, 0.0, 0.0]))
     planner = AStarPlanner()
