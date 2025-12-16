@@ -7,7 +7,7 @@ import json
 from agent_dynamics import AgentDynamics
 from boat_dynamics import MilliAmpere1Sim
 from rt_rrt_star import RTRRTStar
-from config import WORLD_BOUNDS, OBSTACLE_BLOCK_RADIUS, R_S, BOAT_WIDTH, BOAT_LENGTH
+from config import WORLD_BOUNDS, OBSTACLE_BLOCK_RADIUS, R_S, BOAT_WIDTH, BOAT_LENGTH, BOAT_SAFETY_PADDING
 from dynamic_obstacle import DynamicObstacle
 
 def load_map_obstacles(filename="map_obstacles.json"):
@@ -208,16 +208,137 @@ def draw_path(screen, path):
     pts = [world_to_screen(n.x) for n in path]
     pygame.draw.lines(screen, COLOR_PATH, False, pts, width=3)
 
+def draw_collision_hulls(screen, path):
+    """Draw convex hulls used for collision detection between consecutive path nodes"""
+    from collision import get_convex_hull_between_poses
+    from config import BOAT_WIDTH, BOAT_LENGTH
+    
+    if len(path) < 2:
+        return
+    
+    for i in range(len(path) - 1):
+        start_node = path[i]
+        end_node = path[i + 1]
+        
+        # Get start and end positions and headings
+        start_pos = start_node.x[:2]
+        start_heading = start_node.x[2] if len(start_node.x) > 2 else 0
+        end_pos = end_node.x[:2]
+        end_heading = end_node.x[2] if len(end_node.x) > 2 else 0
+        
+        # Get convex hull vertices
+        hull_vertices = get_convex_hull_between_poses(
+            start_pos, start_heading,
+            end_pos, end_heading,
+            BOAT_WIDTH, BOAT_LENGTH
+        )
+        
+        # Convert to screen coordinates
+        screen_vertices = [world_to_screen(v) for v in hull_vertices]
+        
+        # Draw the convex hull as a semi-transparent polygon
+        if len(screen_vertices) >= 3:
+            hull_surface = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE), pygame.SRCALPHA)
+            pygame.draw.polygon(hull_surface, (100, 200, 255, 80), screen_vertices)
+            screen.blit(hull_surface, (0, 0))
+            # Draw outline
+            pygame.draw.polygon(screen, (50, 150, 255), screen_vertices, 2)
+
+
+def draw_collision_hulls(screen, path):
+    """Draw convex hulls used for collision detection between consecutive path nodes"""
+    from collision import get_convex_hull_between_poses
+    from config import BOAT_WIDTH, BOAT_LENGTH
+    
+    if len(path) < 2:
+        return
+    
+    for i in range(len(path) - 1):
+        start_node = path[i]
+        end_node = path[i + 1]
+        
+        # Get start and end positions and headings
+        start_pos = start_node.x[:2]
+        start_heading = start_node.x[2] if len(start_node.x) > 2 else 0
+        end_pos = end_node.x[:2]
+        end_heading = end_node.x[2] if len(end_node.x) > 2 else 0
+        
+        # Get convex hull vertices
+        hull_vertices = get_convex_hull_between_poses(
+            start_pos, start_heading,
+            end_pos, end_heading,
+            BOAT_WIDTH, BOAT_LENGTH
+        )
+        
+        # Convert to screen coordinates
+        screen_vertices = [world_to_screen(v) for v in hull_vertices]
+        
+        # Draw the convex hull as a semi-transparent polygon
+        if len(screen_vertices) >= 3:
+            hull_surface = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE), pygame.SRCALPHA)
+            pygame.draw.polygon(hull_surface, (100, 200, 255, 80), screen_vertices)
+            screen.blit(hull_surface, (0, 0))
+            # Draw outline
+            pygame.draw.polygon(screen, (50, 150, 255), screen_vertices, 2)
+
+def draw_collision_hulls(screen, path):
+    """Draw convex hulls used for collision detection between consecutive path nodes"""
+    from collision import create_swept_hull
+    
+    if len(path) < 2:
+        return
+    
+    for i in range(len(path) - 1):
+        start_node = path[i]
+        end_node = path[i + 1]
+        
+        # Get start and end positions and headings
+        start_pos = start_node.x[:2]
+        start_heading = start_node.x[2] if len(start_node.x) > 2 else 0
+        end_pos = end_node.x[:2]
+        end_heading = end_node.x[2] if len(end_node.x) > 2 else 0
+        
+        # Get convex hull vertices with safety padding (same as collision detection)
+        safe_width = BOAT_WIDTH + 2 * BOAT_SAFETY_PADDING
+        safe_length = BOAT_LENGTH + 2 * BOAT_SAFETY_PADDING
+        
+        hull_vertices = create_swept_hull(
+            start_pos, start_heading,
+            end_pos, end_heading,
+            safe_width, safe_length
+        )
+        
+        # Convert to screen coordinates
+        screen_vertices = [world_to_screen(v) for v in hull_vertices]
+        
+        # Draw the convex hull as a semi-transparent polygon
+        if len(screen_vertices) >= 3:
+            hull_surface = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE), pygame.SRCALPHA)
+            pygame.draw.polygon(hull_surface, (100, 200, 255, 80), screen_vertices)
+            screen.blit(hull_surface, (0, 0))
+            # Draw outline
+            pygame.draw.polygon(screen, (50, 150, 255), screen_vertices, 2)
+
 
 def draw_boat(screen, boat):
     """Draw the boat as a rectangle with heading indicator"""
-    corners = boat.get_corners()
+    from collision import get_boat_corners
     
-    # Convert corners to screen coordinates
+    # Draw safety padding (inflated boat)
+    safe_corners = get_boat_corners(
+        boat.x[:2], boat.x[2], 
+        boat.width + 2 * BOAT_SAFETY_PADDING, 
+        boat.length + 2 * BOAT_SAFETY_PADDING
+    )
+    safe_screen_corners = [world_to_screen(corner) for corner in safe_corners]
+    
+    # Draw actual boat
+    corners = boat.get_corners()
     screen_corners = [world_to_screen(corner) for corner in corners]
     
-    # Draw boat body
+    # Draw boat body with safety padding visualization
     boat_surface = pygame.Surface((SCREEN_SIZE, SCREEN_SIZE), pygame.SRCALPHA)
+    pygame.draw.polygon(boat_surface, (255, 200, 0, 40), safe_screen_corners)  # Yellow padding
     pygame.draw.polygon(boat_surface, (*COLOR_AGENT, 128), screen_corners)  # Semi-transparent boat
     pygame.draw.polygon(boat_surface, (255, 255, 255), screen_corners, 2)  # White outline
     screen.blit(boat_surface, (0, 0))
@@ -342,7 +463,7 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([5, 3,0])
+    x_start = np.array([4, 10,np.pi/2])
     x_goal  = np.array([0.8, 0.8,0])
 
     obstacles, rectangles = load_map_obstacles()
@@ -363,6 +484,7 @@ def main():
     # Display state
     show_tree = True
     show_info = True
+    show_collision_hulls = False
     
     # Goal setting state
     dragging_goal = False
@@ -393,6 +515,14 @@ def main():
                 # I to toggle info display
                 if event.key == pygame.K_i:
                     show_info = not show_info
+                
+                # C to toggle collision hull visualization
+                if event.key == pygame.K_c:
+                    show_collision_hulls = not show_collision_hulls
+                    status = "ON" if show_collision_hulls else "OFF"
+                    print(f"Collision hull visualization: {status}")
+                
+                # D to delete all dynamic obstacles
                 
                 # D to delete all dynamic obstacles
                 if event.key == pygame.K_d:
@@ -486,6 +616,8 @@ def main():
         draw_dynamic_obstacles(screen, dynamic_obstacles)
         if show_tree:
             draw_tree(screen, planner.tree)
+        if show_collision_hulls:
+            draw_collision_hulls(screen, path)
         draw_path(screen, path)
         draw_boat(screen, boat)
         draw_goal(screen, x_goal)
@@ -552,8 +684,8 @@ def main():
         # Instructions and info overlay
         font = pygame.font.Font(None, 24)
         instructions = [
-            "T: Toggle Tree | I: Toggle Info",
-            "Left-drag: Set Goal | Right-drag: Add Dynamic Obstacle"
+            "T: Tree | I: Info | C: Collision Hulls | D: Clear Obstacles",
+            "Left-drag: Goal | Right-drag: Dynamic Obstacle"
         ]
         for i, text in enumerate(instructions):
             surf = font.render(text, True, (200, 200, 200))

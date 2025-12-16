@@ -26,8 +26,9 @@ GRID_SIZE = 2.0
 
 # k-step planning horizon
 K_PLANNING = 100
-BOAT_WIDTH = 0.5
-BOAT_LENGTH = 10
+BOAT_WIDTH = 2.8
+BOAT_LENGTH = 5
+BOAT_SAFETY_PADDING = 0.5  # Extra padding around boat for collision detection
 boat_minimum_dimensium = min(BOAT_WIDTH, BOAT_LENGTH)
 #World bounds
 WORLD_BOUNDS = np.array([[0, 30],

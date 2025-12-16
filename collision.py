@@ -2,7 +2,7 @@
 
 import numpy as np
 from scipy.spatial import ConvexHull
-from config import BOAT_WIDTH, BOAT_LENGTH,WORLD_BOUNDS
+from config import BOAT_WIDTH, BOAT_LENGTH, BOAT_SAFETY_PADDING, WORLD_BOUNDS
 
 
 def line_collision_free(x1, x2, obstacles):
@@ -63,45 +63,32 @@ def get_boat_corners(position, heading, width, length):
 
 
 def create_swept_hull(start_pos, start_heading, end_pos, end_heading, width, length):
-    """
-    Create a convex hull around the boat's start and end positions.
+    all_points = []
     
-    Parameters
-    ----------
-    start_pos : np.array
-        Starting position [x, y]
-    start_heading : float
-        Starting heading in radians
-    end_pos : np.array
-        Ending position [x, y]
-    end_heading : float
-        Ending heading in radians
-    width : float
-        Boat width
-    length : float
-        Boat length
-        
-    Returns
-    -------
-    np.array
-        Vertices of the convex hull in counter-clockwise order
-    """
-    # Get corners at start position
-    start_corners = get_boat_corners(start_pos, start_heading, width, length)
+    # Calculate heading difference (normalize to [-pi, pi])
+    heading_diff = (end_heading - start_heading + np.pi) % (2 * np.pi) - np.pi
+    abs_heading_diff = abs(heading_diff)
     
-    # Get corners at end position
-    end_corners = get_boat_corners(end_pos, end_heading, width, length)
+    # Adaptive interpolation: 3 to 7 positions based on angle
+    # Small angles (< 15°): 3 positions
+    # Medium angles (15-45°): 5 positions
+    # Large angles (> 45°): 7 positions
+    if abs_heading_diff < np.pi / 12:  # < 15 degrees
+        num_positions = 3
+    elif abs_heading_diff < np.pi / 4:  # < 45 degrees
+        num_positions = 5
+    else:  # >= 45 degrees
+        num_positions = 7
     
-    mid_pos = (start_pos + end_pos) / 2
-    mid_heading = (start_heading + end_heading) / 2
-    mid_corners = get_boat_corners(mid_pos, mid_heading, width, length)
-    # Combine all 12 points
-    all_points = np.vstack([start_corners, end_corners, mid_corners])
+    for i in range(num_positions):
+        t = i / (num_positions - 1)
+        interp_pos = start_pos + t * (end_pos - start_pos)
+        interp_heading = start_heading + t * (end_heading - start_heading)
+        corners = get_boat_corners(interp_pos, interp_heading, width, length)
+        all_points.append(corners)
     
-    # Compute convex hull
+    all_points = np.vstack(all_points)
     hull = ConvexHull(all_points)
-    
-    # Return vertices in order
     return all_points[hull.vertices]
 
 
@@ -323,8 +310,12 @@ def boat_collision_free(start_node, end_node, obstacles, rectangles=None,
     end_pos = end_node.x[:2]
     end_heading = end_node.x[2]
     
+    # Apply safety padding to boat dimensions
+    safe_width = width + 2 * BOAT_SAFETY_PADDING
+    safe_length = length + 2 * BOAT_SAFETY_PADDING
+    
     return boat_path_collision_free(start_pos, start_heading, 
                                     end_pos, end_heading,
-                                    width, length, obstacles, rectangles)
+                                    safe_width, safe_length, obstacles, rectangles)
 
 

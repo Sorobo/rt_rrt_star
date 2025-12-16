@@ -78,7 +78,7 @@ class RTRRTStar:
         if len(self.path) >= 2:
             pos_dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
             angle_diff = abs(self.path[0].x[2] - x_agent[2])
-            angle_diff = min(angle_diff, 2*np.pi - angle_diff)  # wrap around
+            angle_diff = min(angle_diff, 2*np.pi - angle_diff)*5  # wrap around
             dist = pos_dist + angle_diff
             if dist < R_S*2:
                 self.path.pop(0)
