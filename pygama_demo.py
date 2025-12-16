@@ -2,12 +2,42 @@ import sys
 import math
 import pygame
 import numpy as np
+import json
 
 from agent_dynamics import AgentDynamics
 from boat_dynamics import MilliAmpere1Sim
 from rt_rrt_star import RTRRTStar
 from config import WORLD_BOUNDS, OBSTACLE_BLOCK_RADIUS, R_S, BOAT_WIDTH, BOAT_LENGTH
 from dynamic_obstacle import DynamicObstacle
+
+def load_map_obstacles(filename="map_obstacles.json"):
+    """Load obstacles from JSON file."""
+    circles = []
+    rectangles = []
+    
+    try:
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        
+        # Add circles
+        for circle in data.get('circles', []):
+            center = np.array(circle['center'])
+            radius = circle['radius']
+            circles.append((center, radius))
+        
+        # Add rectangles
+        for rect in data.get('rectangles', []):
+            corner1 = np.array(rect['corner1'])
+            corner2 = np.array(rect['corner2'])
+            rectangles.append((corner1, corner2))
+        
+        print(f"Loaded {len(circles)} circles and {len(rectangles)} rectangles from {filename}")
+    except FileNotFoundError:
+        print(f"Map file {filename} not found, using empty map")
+    except Exception as e:
+        print(f"Error loading map: {e}")
+    
+    return circles, rectangles
 
 # ---------------------------
 # Pygame / visualization setup
@@ -39,12 +69,26 @@ def world_to_screen(x):
     return sx, sy
 
 
-def draw_obstacles(screen, obstacles):
+def draw_obstacles(screen, obstacles, rectangles=None):
+    # Draw circles
     for center, radius in obstacles:
         cx, cy = world_to_screen(center)
         # scale radius
         r = int(radius / (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0]) * SCREEN_SIZE)
         pygame.draw.circle(screen, COLOR_OBSTACLE, (cx, cy), r, width=0)
+    
+    # Draw rectangles
+    if rectangles:
+        for corner1, corner2 in rectangles:
+            x1, y1 = world_to_screen(corner1)
+            x2, y2 = world_to_screen(corner2)
+            
+            left = min(x1, x2)
+            top = min(y1, y2)
+            width = abs(x2 - x1)
+            height = abs(y2 - y1)
+            
+            pygame.draw.rect(screen, COLOR_OBSTACLE, (left, top, width, height), width=0)
 
 def draw_dynamic_obstacles(screen, dynamic_obstacles):
     """Draw dynamic obstacles with their blocking radius"""
@@ -77,11 +121,10 @@ def draw_tree(screen, tree):
     for node_id in tree.index.nodes:  # Iterate over node IDs
         node = tree.index.nodes[node_id]  # Fetch the actual Node object
         if node.parent is not None:
-            #if node.blocked or node.parent.blocked:
-            #    continue  # Skip drawing edges for blocked nodes or to blocked parents
             x1 = world_to_screen(node.parent.x)
             x2 = world_to_screen(node.x)
-            if node.blocked or node.parent.blocked:
+            # Draw blocked edges (infinite cost) in magenta
+            if node.cost == float("inf") or node.parent.cost == float("inf"):
                 pygame.draw.line(screen, (255, 0, 255), x1, x2, width=1)  # Magenta for blocked
             else:
                 pygame.draw.line(screen, COLOR_TREE, x1, x2, width=1)
@@ -100,29 +143,55 @@ def draw_tree(screen, tree):
             pygame.draw.line(screen, COLOR_TREE, x2, p2, width=1)
 
 
-    # Draw nodes
+    # First pass: collect costs for color mapping
+    costs = []
+    for node_id in tree.index.nodes:
+        node = tree.index.nodes[node_id]
+        if node.cost != float("inf") and node.cost > 0:
+            costs.append(node.cost)
+    
+    # Determine cost range for color mapping
+    if costs:
+        min_cost = min(costs)
+        max_cost = max(costs)
+        cost_range = max_cost - min_cost if max_cost > min_cost else 1.0
+    else:
+        min_cost = 0
+        cost_range = 1.0
+    
+    # Draw nodes with cost-based coloring
     for node_id in tree.index.nodes:  # Iterate over node IDs
         node = tree.index.nodes[node_id]  # Fetch the actual Node object
-        #if node.blocked:
-        #    continue  # Skip drawing blocked nodes
         x = world_to_screen(node.x)
-        #if node.blocked:
-        #    pygame.draw.circle(screen, (255, 0, 255), x, 2)  # Magenta for blocked
+        
+        # Determine color based on cost
         if node.cost == 0:
-                pygame.draw.circle(screen, (255, 0, 0), x, 4)
+            # Root node - red
+            color = (255, 0, 0)
+            radius = 4
+        elif node.cost == float("inf"):
+            # Infinite cost (blocked) - orange
+            color = (255, 165, 0)
+            radius = 2
         else:
-            # Color based on cost
-            if node.cost == float("inf"):
-                pygame.draw.circle(screen, (255, 165, 0), x, 2)
-            else:
-                pygame.draw.circle(screen, COLOR_TREE, x, 2)
-                # Draw heading indicator for nodes with heading info
-                if len(node.x) >= 3:  # Check if node has heading
-                    heading = node.x[2]
-                    line_len = 10  # Length in screen pixels
-                    end_x = x[0] + line_len * math.cos(heading)
-                    end_y = x[1] - line_len * math.sin(heading)  # Flip y for pygame
-                    pygame.draw.line(screen, COLOR_TREE, x, (int(end_x), int(end_y)), 1)
+            # Normal nodes - color gradient from green (low cost) to blue (high cost)
+            normalized_cost = (node.cost - min_cost) / cost_range
+            # Green to cyan to blue gradient
+            r = int(50 * (1 - normalized_cost))
+            g = int(150 + 105 * (1 - normalized_cost))
+            b = int(100 + 155 * normalized_cost)
+            color = (r, g, b)
+            radius = 2
+        
+        pygame.draw.circle(screen, color, x, radius)
+        
+        # Draw heading indicator for nodes with heading info
+        if node.cost != float("inf") and len(node.x) >= 3:
+            heading = node.x[2]
+            line_len = 10  # Length in screen pixels
+            end_x = x[0] + line_len * math.cos(heading)
+            end_y = x[1] - line_len * math.sin(heading)  # Flip y for pygame
+            pygame.draw.line(screen, color, x, (int(end_x), int(end_y)), 1)
     # Draw nodes
     """
     for node_id in tree.index.nodes:  # Iterate over node IDs
@@ -273,45 +342,16 @@ def main():
     # ------------------------------------
     # Define start, goal, and obstacles
     # ------------------------------------
-    x_start = np.array([5, 2,0])
+    x_start = np.array([5, 3,0])
     x_goal  = np.array([0.8, 0.8,0])
 
-    obstacles = [
-        (np.array([0.0, 5.0]), 3.0),
-        (np.array([10.0, 10.0]), 1.0),
-        (np.array([7.0, 4.0]), 2.0),
-        (np.array([3.0, 3.0]), 1.0),
-        (np.array([7.0, 7.0]), 1.5),
-        (np.array([12.0, 6.0]), 1.0),
-        (np.array([6.0, 12.0]), 1.2),
-        (np.array([9.0, 3.0]), 0.8),
-        (np.array([4.0, 8.0]), 1.0),
-        (np.array([11.0, 13.0]), 1.5),
-        (np.array([14.0, 5.0]), 1.3),
-        (np.array([2.0, 11.0]), 0.9),
-        (np.array([8.0, 14.0]), 1.1),
-        (np.array([13.0, 9.0]), 1.2),
-        (np.array([5.0, 2.0]), 0.7),
-        (np.array([10.0, 1.0]), 1.0),
-        (np.array([15.0, 15.0]), 1.5),
-        (np.array([10.0, 5.0]), 2.0),
-        (np.array([5.0, 10.0]), 1.0),
-        (np.array([10.0, 10.0]), 1.2),
-        (np.array([5.0, 5.0]), 1.0),
-        (np.array([10.0, 15.0]), 1.5),
-        (np.array([15.0, 10.0]), 1.3),
-        (np.array([10.0, 5.0]), 1.1),
-        (np.array([5.0, 10.0]), 0.9),
-        (np.array([10.0, 10.0]), 1.4),
-        (np.array([4, 6]), 1.0)
-    ]
-
-    obstacles = generate_obstacles(5, 0.1, 0.5)
+    obstacles, rectangles = load_map_obstacles()
+    #obstacles, rectangles = [], []
     # Initialize dynamic obstacles
     dynamic_obstacles = [
-        #DynamicObstacle(center=[5.0, 7.0], radius=0.8, velocity=[.15, .08]),
-        #DynamicObstacle(center=[10.0, 3.0], radius=0.6, velocity=[-0.10, .12]),
-        #DynamicObstacle(center=[12.0, 12.0], radius=0.7, velocity=[.05, -.15]),
+        #DynamicObstacle(center=[15.0, 0.0], radius=2.5, velocity=[0,0]),
+        #DynamicObstacle(center=[15.0, 5.0], radius=2.5, velocity=[-0, 0]),
+        #DynamicObstacle(center=[15.0, 10.0], radius=2.5, velocity=[0, 0]),
     ]
 
     planner = RTRRTStar(WORLD_BOUNDS, x_start)
@@ -320,9 +360,17 @@ def main():
     print("Starting RT-RRT* demo. Close window to exit.",x_agent)
     running = True
     
+    # Display state
+    show_tree = True
+    show_info = True
+    
     # Goal setting state
     dragging_goal = False
     goal_start_pos = None
+    
+    # Dynamic obstacle creation state
+    dragging_obstacle = False
+    obstacle_start_pos = None
 
     while running:
         dt = clock.tick(FPS) / 1000.0  # seconds per frame
@@ -333,6 +381,24 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            
+            # Keyboard controls
+            if event.type == pygame.KEYDOWN:
+                # T to toggle tree visualization
+                if event.key == pygame.K_t:
+                    show_tree = not show_tree
+                    status = "ON" if show_tree else "OFF"
+                    print(f"Tree visualization: {status}")
+                
+                # I to toggle info display
+                if event.key == pygame.K_i:
+                    show_info = not show_info
+                
+                # D to delete all dynamic obstacles
+                if event.key == pygame.K_d:
+                    num_obstacles = len(dynamic_obstacles)
+                    dynamic_obstacles.clear()
+                    print(f"Deleted {num_obstacles} dynamic obstacles")
 
             # Left-click and drag to set goal position and direction
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -364,21 +430,45 @@ def main():
                 dragging_goal = False
                 goal_start_pos = None
             
-            # Right-click to add obstacle
+            # Right-click and drag to add dynamic obstacle with velocity
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 mx, my = event.pos
                 # Convert screen to world
                 wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
                 wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
-                obstacles.append((np.array([wx, wy], dtype=float), 1.0))
-                print(f"Added obstacle at: ({wx:.2f}, {wy:.2f})")
+                obstacle_start_pos = np.array([wx, wy])
+                dragging_obstacle = True
+            
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+                if dragging_obstacle and obstacle_start_pos is not None:
+                    mx, my = pygame.mouse.get_pos()
+                    # Convert screen to world
+                    wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
+                    wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
+                    obstacle_end_pos = np.array([wx, wy])
+                    
+                    # Calculate velocity from drag vector (scaled down for reasonable speed)
+                    drag_vector = obstacle_end_pos - obstacle_start_pos
+                    velocity = drag_vector * 0.5  # Scale factor for velocity
+                    
+                    # Create dynamic obstacle
+                    new_obstacle = DynamicObstacle(
+                        center=obstacle_start_pos.tolist(),
+                        radius=0.7,
+                        velocity=velocity.tolist()
+                    )
+                    dynamic_obstacles.append(new_obstacle)
+                    print(f"Added dynamic obstacle at: ({obstacle_start_pos[0]:.2f}, {obstacle_start_pos[1]:.2f}) with velocity: ({velocity[0]:.3f}, {velocity[1]:.3f})")
+                
+                dragging_obstacle = False
+                obstacle_start_pos = None
         # ---------------------------
         # RT-RRT* planning step
         # ---------------------------
-        path = planner.step(x_agent, x_goal, obstacles, dynamic_obstacles, dt)
+        path = planner.step(x_agent, x_goal, obstacles, dynamic_obstacles, rectangles, dt)
 
         # Move boat along path (if there is at least 1 step ahead)
-        
+        boat.dt = dt  # Update boat's timestep to match framerate
         if len(path) >= 1:
             next_node = path[0]
             print("Next node:", next_node.x)
@@ -392,9 +482,10 @@ def main():
         screen.fill(COLOR_BG)
 
         # Draw environment
-        draw_obstacles(screen, obstacles)
+        draw_obstacles(screen, obstacles, rectangles)
         draw_dynamic_obstacles(screen, dynamic_obstacles)
-        draw_tree(screen, planner.tree)
+        if show_tree:
+            draw_tree(screen, planner.tree)
         draw_path(screen, path)
         draw_boat(screen, boat)
         draw_goal(screen, x_goal)
@@ -428,6 +519,63 @@ def main():
             
             pygame.draw.line(screen, (255, 255, 0), end_screen, p1, 3)
             pygame.draw.line(screen, (255, 255, 0), end_screen, p2, 3)
+        
+        # Draw dynamic obstacle creation preview while dragging
+        if dragging_obstacle and obstacle_start_pos is not None:
+            mx, my = pygame.mouse.get_pos()
+            wx = mx / SCREEN_SIZE * (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0])
+            wy = (SCREEN_SIZE - my) / SCREEN_SIZE * (WORLD_BOUNDS[1, 1] - WORLD_BOUNDS[1, 0])
+            
+            start_screen = world_to_screen(obstacle_start_pos)
+            end_screen = world_to_screen(np.array([wx, wy]))
+            
+            # Draw obstacle preview circle
+            pygame.draw.circle(screen, (255, 100, 100), start_screen, 8, 2)
+            
+            # Draw velocity arrow
+            if np.linalg.norm(np.array(end_screen) - np.array(start_screen)) > 5:
+                pygame.draw.line(screen, (255, 100, 100), start_screen, end_screen, 2)
+                
+                # Draw arrowhead
+                angle = math.atan2(end_screen[1] - start_screen[1], end_screen[0] - start_screen[0])
+                arrow_len = 10
+                arrow_angle = math.pi / 6
+                
+                p1 = (end_screen[0] - arrow_len * math.cos(angle - arrow_angle),
+                      end_screen[1] - arrow_len * math.sin(angle - arrow_angle))
+                p2 = (end_screen[0] - arrow_len * math.cos(angle + arrow_angle),
+                      end_screen[1] - arrow_len * math.sin(angle + arrow_angle))
+                
+                pygame.draw.line(screen, (255, 100, 100), end_screen, p1, 2)
+                pygame.draw.line(screen, (255, 100, 100), end_screen, p2, 2)
+        
+        # Instructions and info overlay
+        font = pygame.font.Font(None, 24)
+        instructions = [
+            "T: Toggle Tree | I: Toggle Info",
+            "Left-drag: Set Goal | Right-drag: Add Dynamic Obstacle"
+        ]
+        for i, text in enumerate(instructions):
+            surf = font.render(text, True, (200, 200, 200))
+            screen.blit(surf, (10, 10 + i * 25))
+        
+        # Show planner info
+        if show_info:
+            num_nodes = len(planner.tree.index.nodes)
+            path_length = len(path)
+            c_best = planner.c_best if planner.c_best != float('inf') else 'N/A'
+            
+            info_texts = [
+                f"Nodes: {num_nodes}",
+                f"Path: {path_length} waypoints",
+                f"Best cost: {c_best if isinstance(c_best, str) else f'{c_best:.2f}'}",
+                f"FPS: {int(clock.get_fps())}"
+            ]
+            
+            y_offset = SCREEN_SIZE - 120
+            for i, text in enumerate(info_texts):
+                surf = font.render(text, True, (200, 200, 200))
+                screen.blit(surf, (10, y_offset + i * 25))
 
         pygame.display.flip()
 

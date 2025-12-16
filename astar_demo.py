@@ -6,6 +6,7 @@ import sys
 import math
 import pygame
 import numpy as np
+import json
 
 from boat_dynamics import MilliAmpere1Sim
 from astar_planner import AStarPlanner
@@ -36,11 +37,25 @@ def world_to_screen(x):
     sy = SCREEN_SIZE - sy
     return sx, sy
 
-def draw_obstacles(screen, obstacles):
+def draw_obstacles(screen, obstacles, rectangles=None):
+    # Draw circles
     for center, radius in obstacles:
         cx, cy = world_to_screen(center)
         r = int(radius / (WORLD_BOUNDS[0, 1] - WORLD_BOUNDS[0, 0]) * SCREEN_SIZE)
         pygame.draw.circle(screen, COLOR_OBSTACLE, (cx, cy), r, width=0)
+    
+    # Draw rectangles
+    if rectangles:
+        for corner1, corner2 in rectangles:
+            x1, y1 = world_to_screen(corner1)
+            x2, y2 = world_to_screen(corner2)
+            
+            left = min(x1, x2)
+            top = min(y1, y2)
+            width = abs(x2 - x1)
+            height = abs(y2 - y1)
+            
+            pygame.draw.rect(screen, COLOR_OBSTACLE, (left, top, width, height), width=0)
 
 def draw_boat(screen, boat):
     """Draw the boat as a rectangle with heading indicator."""
@@ -156,20 +171,34 @@ def draw_planning_nodes(screen, planner):
         end_y = pos[1] - line_len * math.sin(heading)
         pygame.draw.line(screen, COLOR_CURRENT, pos, (int(end_x), int(end_y)), 2)
 
-def generate_obstacles(num_obstacles, min_radius, max_radius):
-    obstacles = []
-    for _ in range(num_obstacles):
-        x = np.random.uniform(WORLD_BOUNDS[0, 0] + 3, WORLD_BOUNDS[0, 1] - 3)
-        y = np.random.uniform(WORLD_BOUNDS[1, 0] + 3, WORLD_BOUNDS[1, 1] - 3)
-        radius = np.random.uniform(min_radius, max_radius)
-        
-        # Skip obstacles near start
-        if x < 10 and y < 10:
-            continue
-        
-        obstacles.append((np.array([x, y]), radius))
+def load_map_obstacles(filename="map_obstacles.json"):
+    """Load obstacles from JSON file."""
+    circles = []
+    rectangles = []
     
-    return obstacles
+    try:
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        
+        # Add circles
+        for circle in data.get('circles', []):
+            center = np.array(circle['center'])
+            radius = circle['radius']
+            circles.append((center, radius))
+        
+        # Add rectangles
+        for rect in data.get('rectangles', []):
+            corner1 = np.array(rect['corner1'])
+            corner2 = np.array(rect['corner2'])
+            rectangles.append((corner1, corner2))
+        
+        print(f"Loaded {len(circles)} circles and {len(rectangles)} rectangles from {filename}")
+    except FileNotFoundError:
+        print(f"Map file {filename} not found, using empty map")
+    except Exception as e:
+        print(f"Error loading map: {e}")
+    
+    return circles, rectangles
 
 def main():
     pygame.init()
@@ -181,7 +210,7 @@ def main():
     x_start = np.array([5.0, 5.0, 0.0])
     x_goal = np.array([25.0, 25.0, np.pi/4])
     
-    obstacles = generate_obstacles(0, 1.0, 2.5)
+    obstacles, rectangles = load_map_obstacles()
     
     boat = MilliAmpere1Sim(np.append(x_start, [0.0, 0.0, 0.0]))
     planner = AStarPlanner()
@@ -192,7 +221,7 @@ def main():
     
     # Initialize planning (real-time mode)
     print("Starting real-time A* planning...")
-    planner.initialize_planning(x_start, x_goal, obstacles)
+    planner.initialize_planning(x_start, x_goal, obstacles, rectangles)
     path = None
     
     # Animation state
@@ -217,7 +246,7 @@ def main():
                 # R to replan
                 if event.key == pygame.K_r:
                     print("\nReplanning...")
-                    planner.initialize_planning(boat.x[:3], x_goal, obstacles)
+                    planner.initialize_planning(boat.x[:3], x_goal, obstacles, rectangles)
                     planning_active = True
                     path_index = 0
                 
@@ -267,7 +296,7 @@ def main():
                     print(f"\nNew goal: ({x_goal[0]:.1f}, {x_goal[1]:.1f}, {np.degrees(heading):.1f}°)")
                     
                     # Replan
-                    planner.initialize_planning(boat.x[:3], x_goal, obstacles)
+                    planner.initialize_planning(boat.x[:3], x_goal, obstacles, rectangles)
                     planning_active = True
                     path_index = 0
                 
@@ -329,7 +358,7 @@ def main():
         
         if show_grid:
             draw_grid(screen)
-        draw_obstacles(screen, obstacles)
+        draw_obstacles(screen, obstacles, rectangles)
         
         # Draw planning visualization
         draw_planning_nodes(screen, planner)

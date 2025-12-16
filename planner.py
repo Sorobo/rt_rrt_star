@@ -7,7 +7,7 @@ from node_module import Node
 def plan_k_steps(tree, x_goal,x_agent):
     print("planning k steps")
     closest_to_goal = tree.nearest_node(x_goal)
-    if not closest_to_goal.blocked:
+    if closest_to_goal.cost != float("inf"):
         if np.linalg.norm(closest_to_goal.x - x_goal) < GOAL_RADIUS:
             path = []
             current = closest_to_goal
@@ -37,7 +37,7 @@ def greedy_path_to_goal(tree, x_goal):
     path = [current]
     while len(path) < K_PLANNING:
         # Select child closest to goal that is not blocked
-        unblocked_children = [child for child in current.children if not child.blocked]
+        unblocked_children = [child for child in current.children if child.cost != float("inf")]
         if not unblocked_children:
             break  # No unblocked children, stop path extension
         next_node = min(unblocked_children, key=lambda n: np.linalg.norm(n.x - x_goal))
@@ -58,8 +58,8 @@ def backtrack_down_tree(tree, start_node):
 
 
 def plan_to_goal(tree, x_goal, x_agent,all_obstacles,dyn_obstacles):
-    #if tree.is_node_blocked(all_obstacles,dyn_obstacles,Node(x_agent)):
-    #    return [Node(x_agent)]
+    if tree.is_node_blocked(all_obstacles,dyn_obstacles,Node(x_agent)):
+        return [Node(x_agent)]
     
     if tree.is_node_blocked(all_obstacles,dyn_obstacles,Node(x_goal)):
         return greedy_path_to_goal(tree, x_goal)

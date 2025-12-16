@@ -105,6 +105,53 @@ def create_swept_hull(start_pos, start_heading, end_pos, end_heading, width, len
     return all_points[hull.vertices]
 
 
+def sat_polygon_polygon(poly1_vertices, poly2_vertices):
+    """
+    Check collision between two polygons using Separating Axis Theorem.
+    
+    Parameters
+    ----------
+    poly1_vertices : np.array
+        Vertices of first polygon (N x 2)
+    poly2_vertices : np.array
+        Vertices of second polygon (M x 2)
+        
+    Returns
+    -------
+    bool
+        True if collision detected, False otherwise
+    """
+    # Test all edge normals from both polygons
+    for polygon in [poly1_vertices, poly2_vertices]:
+        n_vertices = len(polygon)
+        
+        for i in range(n_vertices):
+            # Get edge
+            p1 = polygon[i]
+            p2 = polygon[(i + 1) % n_vertices]
+            edge = p2 - p1
+            
+            # Get perpendicular (normal)
+            normal = np.array([-edge[1], edge[0]])
+            normal_length = np.linalg.norm(normal)
+            if normal_length < 1e-10:
+                continue
+            normal = normal / normal_length
+            
+            # Project both polygons onto axis
+            proj1 = poly1_vertices @ normal
+            min1, max1 = np.min(proj1), np.max(proj1)
+            
+            proj2 = poly2_vertices @ normal
+            min2, max2 = np.min(proj2), np.max(proj2)
+            
+            # Check for separation
+            if max1 < min2 or max2 < min1:
+                return False  # Separating axis found, no collision
+    
+    return True  # No separating axis found, collision detected
+
+
 def sat_polygon_circle(polygon_vertices, circle_center, circle_radius):
     """
     Check collision between a polygon and a circle using Separating Axis Theorem.
@@ -178,7 +225,7 @@ def sat_polygon_circle(polygon_vertices, circle_center, circle_radius):
 
 
 def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading, 
-                             width, length, obstacles):
+                             width, length, obstacles, rectangles=None):
     """
     Check if a boat path from start to end is collision-free using SAT.
     
@@ -197,7 +244,9 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
     length : float
         Boat length
     obstacles : list
-        List of (center, radius) tuples
+        List of (center, radius) tuples for circular obstacles
+    rectangles : list, optional
+        List of (corner1, corner2) tuples for rectangular obstacles
         
     Returns
     -------
@@ -209,11 +258,27 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
                                       end_pos, end_heading, 
                                       width, length)
     
-    # Check collision with each obstacle
+    # Check collision with circular obstacles
     for obstacle in obstacles:
         center, radius = obstacle
         if sat_polygon_circle(hull_vertices, center, radius):
             return False  # Collision detected
+    
+    # Check collision with rectangular obstacles
+    if rectangles:
+        for rect in rectangles:
+            corner1, corner2 = rect
+            # Create rectangle vertices
+            x1, y1 = corner1
+            x2, y2 = corner2
+            rect_vertices = np.array([
+                [x1, y1],
+                [x2, y1],
+                [x2, y2],
+                [x1, y2]
+            ])
+            if sat_polygon_polygon(hull_vertices, rect_vertices):
+                return False  # Collision detected
     # Check if the hull is within world bounds
     if np.any(hull_vertices[:, 0] < WORLD_BOUNDS[0][0]) or np.any(hull_vertices[:, 0] > WORLD_BOUNDS[0][1]) or \
        np.any(hull_vertices[:, 1] < WORLD_BOUNDS[1][0]) or np.any(hull_vertices[:, 1] > WORLD_BOUNDS[1][1]):
@@ -226,7 +291,7 @@ def boat_path_collision_free(start_pos, start_heading, end_pos, end_heading,
 
     
     
-def boat_collision_free(start_node, end_node, obstacles, 
+def boat_collision_free(start_node, end_node, obstacles, rectangles=None,
                         width=BOAT_WIDTH, length=BOAT_LENGTH):
     """
     Check if boat movement from start_node to end_node is collision-free.
@@ -239,7 +304,9 @@ def boat_collision_free(start_node, end_node, obstacles,
     end_node : Node or np.array  
         Ending node (with .x and .heading) or position array
     obstacles : list
-        List of (center, radius) tuples
+        List of (center, radius) tuples for circular obstacles
+    rectangles : list, optional
+        List of (corner1, corner2) tuples for rectangular obstacles
     width : float, optional
         Boat width (default from config)
     length : float, optional
@@ -258,5 +325,6 @@ def boat_collision_free(start_node, end_node, obstacles,
     
     return boat_path_collision_free(start_pos, start_heading, 
                                     end_pos, end_heading,
-                                    width, length, obstacles)
+                                    width, length, obstacles, rectangles)
+
 

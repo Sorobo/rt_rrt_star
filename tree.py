@@ -31,7 +31,7 @@ class Tree:
 
         return self.index.radius_search(x, eps)
 
-    def add_node(self, x_new, n_closest, obstacles):
+    def add_node(self, x_new, n_closest, obstacles, rectangles=None):
         n = Node(x_new)
         n.cost = n_closest.cost + np.linalg.norm(x_new - n_closest.x)
         n_closest.add_child(n)
@@ -89,62 +89,150 @@ class Tree:
         while queue:
             node = queue.popleft()
             for child in node.children:
-                child.cost = self.cost(node) + np.linalg.norm(child.x - node.x)
-                queue.append(child)
+                # Don't update cost for blocked nodes
+                if child.cost != float("inf"):
+                    child.cost = self.cost(node) + np.linalg.norm(child.x - node.x)
+                    queue.append(child)
+                # Blocked nodes stay blocked, don't propagate to their children
 
 
     def cost(self, node):
         if node.parent is None:
             return node.cost
-        if node.blocked:
+        if node.cost == float("inf"):
             return float("inf")
         return node.parent.cost + np.linalg.norm(node.x - node.parent.x)
     
-    def block_nodes_near_obstacle(self, obstacle_center, block_radius):
+    def block_nodes_near_obstacle(self, obstacle_center, obstacle_radius):
         """
-        Set cost to inf for all nodes within block_radius of obstacle_center.
-        Returns the number of nodes blocked.
+        Block nodes that are too close to a dynamic obstacle.
+        Only checks nodes within OBSTACLE_SENSE_RADIUS for efficiency.
+        Blocks a node if:
+        1. The node itself is within OBSTACLE_BLOCK_RADIUS of the obstacle
+        2. The edge from parent to node intersects the obstacle blocking radius
         """
-        affected_nodes = self.index.radius_search(obstacle_center, block_radius)
+        from config import OBSTACLE_BLOCK_RADIUS, OBSTACLE_SENSE_RADIUS
+        
+        # Get candidate nodes within sensing radius
+        candidate_nodes = self.index.radius_search(obstacle_center, OBSTACLE_SENSE_RADIUS)
         count = 0
         
-        for node in affected_nodes:
-            if node is not self.root:  # Don't block the root
+        for node in candidate_nodes:
+            if node is self.root or node.cost == float("inf"):
+                continue  # Skip root and already blocked nodes
+            
+            # Check if node position is within blocking radius
+            node_dist = np.linalg.norm(node.x[:2] - obstacle_center)
+            should_block = node_dist <= (OBSTACLE_BLOCK_RADIUS + obstacle_radius)
+            
+            # If node itself is not blocked, check the edge from parent
+            if not should_block and node.parent is not None:
+                # Check if edge from parent to node passes through blocking radius
+                should_block = self._edge_intersects_circle(
+                    node.parent.x[:2], node.x[:2], 
+                    obstacle_center, OBSTACLE_BLOCK_RADIUS + obstacle_radius
+                )
+            
+            if should_block:
                 node.cost = float("inf")
-                node.blocked = True
                 count += 1
-                children_queue = [child for child in node.children]
-                while children_queue:
-                    child_node = children_queue.pop(0)
-                    if not child_node.blocked:
-                        child_node.cost = float("inf")
-                        count += 1
-                        children_queue.extend(child_node.children)
+                # Propagate infinite cost to all descendants
+                self._propagate_infinite_cost(node)
+                print("Blocked node at:", node.x," with cost:",node.cost)
         
         return count
+    
+    def _edge_intersects_circle(self, p1, p2, circle_center, circle_radius):
+        """
+        Check if line segment from p1 to p2 intersects circle.
+        Uses distance from point to line segment formula.
+        """
+        # Vector from p1 to p2
+        d = p2 - p1
+        # Vector from p1 to circle center
+        f = p1 - circle_center
+        
+        a = np.dot(d, d)
+        if a < 1e-10:  # p1 == p2
+            return np.linalg.norm(p1 - circle_center) <= circle_radius
+        
+        b = 2 * np.dot(f, d)
+        c = np.dot(f, f) - circle_radius * circle_radius
+        
+        discriminant = b * b - 4 * a * c
+        
+        if discriminant < 0:
+            return False  # No intersection
+        
+        # Check if intersection points are on the segment [0, 1]
+        discriminant = np.sqrt(discriminant)
+        t1 = (-b - discriminant) / (2 * a)
+        t2 = (-b + discriminant) / (2 * a)
+        
+        # Intersection occurs if either t is in [0, 1]
+        return (0 <= t1 <= 1) or (0 <= t2 <= 1) or (t1 < 0 and t2 > 1)
+    
+    def _propagate_infinite_cost(self, node):
+        """
+        Recursively propagate infinite cost to all descendants.
+        """
+        children_queue = list(node.children)
+        while children_queue:
+            child_node = children_queue.pop(0)
+            if child_node.cost != float("inf"):
+                child_node.cost = float("inf")
+                children_queue.extend(child_node.children)
     
     def unblock_nodes(self, all_obstacles):
         """
         Check all blocked nodes and unblock if no longer in obstacle range.
-        Recompute their costs if unblocked.
+        Checks both node position and edge from parent.
         """
+        from config import OBSTACLE_BLOCK_RADIUS
+        
         for node_id in self.index.nodes:
             node = self.index.nodes[node_id]
-            if node.blocked:
+            # Check nodes with infinite cost (blocked)
+            if node.cost == float("inf") and node is not self.root:
                 # Check if node is still blocked by any obstacle
                 still_blocked = False
+                
                 for obs_center, obs_radius in all_obstacles:
-                    if np.linalg.norm(node.x - obs_center) <= OBSTACLE_BLOCK_RADIUS + obs_radius:
+                    # Check node position
+                    node_dist = np.linalg.norm(node.x[:2] - obs_center)
+                    if node_dist <= (OBSTACLE_BLOCK_RADIUS + obs_radius):
                         still_blocked = True
                         break
+                    
+                    # Check edge from parent
+                    if node.parent is not None:
+                        if self._edge_intersects_circle(
+                            node.parent.x[:2], node.x[:2],
+                            obs_center, OBSTACLE_BLOCK_RADIUS + obs_radius
+                        ):
+                            still_blocked = True
+                            break
                 
                 if not still_blocked:
-                    node.blocked = False
                     # Recompute cost from parent
                     if node.parent and node.parent.cost != float("inf"):
                         node.cost = node.parent.cost + np.linalg.norm(node.x - node.parent.x)
-                    else:
-                        node.cost = float("inf")
+                        # Recursively update children costs
+                        self._propagate_cost_update(node)
+                        print("Unblocked node at:", node.x)
+    
+    def _propagate_cost_update(self, node):
+        """
+        Recursively update costs for descendants after unblocking.
+        """
+        children_queue = list(node.children)
+        while children_queue:
+            child_node = children_queue.pop(0)
+            if child_node.cost == float("inf") and child_node.parent and child_node.parent.cost != float("inf"):
+                # Check if this child is still blocked by obstacles
+                # (it might have been blocked independently)
+                child_node.cost = child_node.parent.cost + np.linalg.norm(child_node.x - child_node.parent.x)
+                children_queue.extend(child_node.children)
     
     def is_node_blocked(self, all_obstacles,dyn_obstacles, node):
         for obs_center, obs_radius in all_obstacles:
