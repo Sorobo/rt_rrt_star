@@ -319,6 +319,55 @@ def draw_collision_hulls(screen, path):
             # Draw outline
             pygame.draw.polygon(screen, (50, 150, 255), screen_vertices, 2)
 
+def export_trajectory_and_hulls(path, filename="trajectory_export.json"):
+    """Export trajectory points and convex hulls to JSON"""
+    from collision import create_swept_hull
+    import json
+    
+    export_data = {
+        "trajectory": [],
+        "convex_hulls": []
+    }
+    
+    # Export trajectory points
+    for node in path:
+        export_data["trajectory"].append({
+            "x": float(node.x[0]),
+            "y": float(node.x[1]),
+            "heading": float(node.x[2]) if len(node.x) > 2 else 0.0
+        })
+    
+    # Export convex hulls
+    if len(path) >= 2:
+        for i in range(len(path) - 1):
+            start_node = path[i]
+            end_node = path[i + 1]
+            
+            start_pos = start_node.x[:2]
+            start_heading = start_node.x[2] if len(start_node.x) > 2 else 0
+            end_pos = end_node.x[:2]
+            end_heading = end_node.x[2] if len(end_node.x) > 2 else 0
+            
+            # Get convex hull with padding
+            safe_width = BOAT_WIDTH + 2 * BOAT_SAFETY_PADDING
+            safe_length = BOAT_LENGTH + 2 * BOAT_SAFETY_PADDING
+            
+            hull_vertices = create_swept_hull(
+                start_pos, start_heading,
+                end_pos, end_heading,
+                safe_width, safe_length
+            )
+            
+            export_data["convex_hulls"].append({
+                "segment": i,
+                "vertices": [[float(v[0]), float(v[1])] for v in hull_vertices]
+            })
+    
+    # Write to file
+    with open(filename, 'w') as f:
+        json.dump(export_data, f, indent=2)
+    
+    print(f"Exported trajectory and convex hulls to {filename}")
 
 def draw_boat(screen, boat):
     """Draw the boat as a rectangle with heading indicator"""
@@ -523,12 +572,17 @@ def main():
                     print(f"Collision hull visualization: {status}")
                 
                 # D to delete all dynamic obstacles
-                
-                # D to delete all dynamic obstacles
                 if event.key == pygame.K_d:
                     num_obstacles = len(dynamic_obstacles)
                     dynamic_obstacles.clear()
                     print(f"Deleted {num_obstacles} dynamic obstacles")
+                
+                # E to export trajectory and convex hulls
+                if event.key == pygame.K_e:
+                    if path:
+                        export_trajectory_and_hulls(path)
+                    else:
+                        print("No path to export")
 
             # Left-click and drag to set goal position and direction
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
