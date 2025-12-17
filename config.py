@@ -7,13 +7,13 @@ ALPHA = 0.1    # probability of sampling along line to goal
 BETA = 1         # controls mix of uniform vs ellipse sampling hihj more ellipse low more uniform
 
 # Tree density
-K_MAX = 10         # max neighbors for rewiring
-R_S = 0.3          # minimum spacing between nodes
-STEP_SIZE = 0.5  # maximum distance for extending the tree
+K_MAX = 5         # max neighbors for rewiring
+R_S = 1          # minimum spacing between nodes
+STEP_SIZE = 2.5  # maximum distance for extending the tree
 
 # Environment/obstacles
 GOAL_RADIUS = 1
-OBSTACLE_BLOCK_RADIUS = 1.5
+OBSTACLE_BLOCK_RADIUS = 2
 OBSTACLE_SENSE_RADIUS = 10.0
 
 # Expansion time budget (seconds)
@@ -26,8 +26,9 @@ GRID_SIZE = 2.0
 
 # k-step planning horizon
 K_PLANNING = 100
-BOAT_WIDTH = 0.5
-BOAT_LENGTH = 10
+BOAT_WIDTH = 2.8
+BOAT_LENGTH = 5
+BOAT_SAFETY_PADDING = 0.5  # Extra padding around boat for collision detection
 boat_minimum_dimensium = min(BOAT_WIDTH, BOAT_LENGTH)
 #World bounds
 WORLD_BOUNDS = np.array([[0, 30],

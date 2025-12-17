@@ -69,6 +69,7 @@ class AStarPlanner:
         self.start_node = None
         self.goal = None
         self.obstacles = None
+        self.rectangles = None
         self.iterations = 0
         self.nodes_expanded = 0
         self.best_node = None  # Best node found so far (closest to goal)
@@ -145,7 +146,7 @@ class AStarPlanner:
             np.array([node1.x, node1.y]), node1.heading,
             np.array([node2.x, node2.y]), node2.heading,
             BOAT_WIDTH, BOAT_LENGTH,
-            obstacles
+            obstacles, self.rectangles
         )
     
     def _in_bounds(self, x: float, y: float) -> bool:
@@ -154,7 +155,8 @@ class AStarPlanner:
                 WORLD_BOUNDS[1, 0] <= y <= WORLD_BOUNDS[1, 1])
     
     def initialize_planning(self, start: np.ndarray, goal: np.ndarray,
-                           obstacles: List[Tuple[np.ndarray, float]]):
+                           obstacles: List[Tuple[np.ndarray, float]],
+                           rectangles: List[Tuple[np.ndarray, np.ndarray]] = None):
         """
         Initialize planning state for a new problem.
         
@@ -165,7 +167,9 @@ class AStarPlanner:
         goal : np.ndarray
             Goal state [x, y, heading]
         obstacles : List[Tuple[np.ndarray, float]]
-            List of (center, radius) tuples
+            List of (center, radius) tuples for circular obstacles
+        rectangles : List[Tuple[np.ndarray, np.ndarray]], optional
+            List of (corner1, corner2) tuples for rectangular obstacles
         """
         # Initialize start node
         self.start_node = AStarNode(
@@ -181,6 +185,7 @@ class AStarPlanner:
         self.g_score = {self.start_node.grid_pos: 0.0}
         self.goal = goal
         self.obstacles = obstacles
+        self.rectangles = rectangles if rectangles is not None else []
         self.iterations = 0
         self.nodes_expanded = 0
         self.best_node = self.start_node

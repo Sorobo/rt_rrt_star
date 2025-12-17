@@ -8,7 +8,6 @@ class Node:
         self.parent = None
         self.children = []
         self.cost = 0.0      # cost-to-reach
-        self.blocked = False
 
     def add_child(self, child):
         self.children.append(child)

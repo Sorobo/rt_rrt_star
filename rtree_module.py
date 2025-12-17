@@ -57,7 +57,13 @@ class RTreeSpatialIndex:
         """
         Return all nodes within a given radius.
         """
-        x, y, theta = float(point[0]), float(point[1]), float(point[2])
+        # Handle both 2D and 3D points
+        if len(point) == 2:
+            x, y = float(point[0]), float(point[1])
+            theta = 0.0
+        else:
+            x, y, theta = float(point[0]), float(point[1]), float(point[2])
+            
         bbox = (x - radius, y - radius, theta*5 - radius, x + radius, y + radius, theta*5 + radius)
 
         # this gives bounding box candidates; we check distance manually
@@ -66,7 +72,8 @@ class RTreeSpatialIndex:
         out = []
         for nid in candidates:
             node = self.nodes[nid]
-            if np.linalg.norm(node.x - point) <= radius:
+            # Compare only the spatial dimensions (x, y)
+            if np.linalg.norm(node.x[:2] - point[:2]) <= radius:
                 out.append(node)
 
         return out

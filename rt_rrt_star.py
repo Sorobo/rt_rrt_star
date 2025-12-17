@@ -22,11 +22,13 @@ class RTRRTStar:
         self.Qs = []
         self.step_counter = 0
 
-    def step(self, x_agent, x_goal, obstacles, dynamic_obstacles=None, dt=0.0):
+    def step(self, x_agent, x_goal, obstacles, dynamic_obstacles=None, rectangles=None, dt=0.0):
 
         # Update dynamic obstacles if provided
         if dynamic_obstacles is None:
             dynamic_obstacles = []
+        if rectangles is None:
+            rectangles = []
         
         for dyn_obs in dynamic_obstacles:
             dyn_obs.update(dt)
@@ -35,11 +37,14 @@ class RTRRTStar:
         # Combine static and dynamic obstacles for collision checking
         all_obstacles = obstacles + [dyn_obs.get_tuple() for dyn_obs in dynamic_obstacles]
         
-        # Block nodes near dynamic obstacles
-        for dyn_obs in dynamic_obstacles:
-            self.tree.block_nodes_near_obstacle(dyn_obs.center, 
-                                               OBSTACLE_BLOCK_RADIUS + dyn_obs.radius)
+        # Store rectangles for collision checking
+        self.rectangles = rectangles
         
+        # Block nodes near dynamic obstacles
+        
+        
+        for dyn_obs in dynamic_obstacles:
+            self.tree.block_nodes_near_obstacle(dyn_obs.center, dyn_obs.radius)
         # Periodically unblock nodes that are clear
         if self.step_counter % 10 == 0:
             self.tree.unblock_nodes(all_obstacles)
@@ -59,21 +64,21 @@ class RTRRTStar:
             n_closest = self.tree.nearest_node(x_rand)
             x_rand = steer(x_rand,n_closest)
             
-            if boat_collision_free(n_closest, Node(x_rand), all_obstacles):
+            if boat_collision_free(n_closest, Node(x_rand), all_obstacles, rectangles):
                 near_nodes = self.tree.nearby(x_rand)
                 if len(near_nodes) < K_MAX or np.linalg.norm(n_closest.x - x_rand) > R_S:
                     # Add node
-                    new_node = self.tree.add_node(x_rand, n_closest, all_obstacles)
+                    new_node = self.tree.add_node(x_rand, n_closest, all_obstacles, rectangles)
                     self.Qr.insert(0, new_node)
                 else:
                     self.Qr.insert(0,n_closest)
             # Rewiring
-            random_rewire(self.tree, self.Qr, all_obstacles)
+            random_rewire(self.tree, self.Qr, all_obstacles, rectangles)
         
         if len(self.path) >= 2:
             pos_dist = np.linalg.norm(self.path[0].x[:2] - x_agent[:2])
             angle_diff = abs(self.path[0].x[2] - x_agent[2])
-            angle_diff = min(angle_diff, 2*np.pi - angle_diff)  # wrap around
+            angle_diff = min(angle_diff, 2*np.pi - angle_diff)*5  # wrap around
             dist = pos_dist + angle_diff
             if dist < R_S*2:
                 self.path.pop(0)
@@ -81,7 +86,7 @@ class RTRRTStar:
         new_root = self.path[0]
         self.tree.set_root(new_root)
         self.Qs.insert(0, new_root)
-        root_rewire(self.tree, self.Qs, all_obstacles, self.path)
+        root_rewire(self.tree, self.Qs, all_obstacles, self.path, rectangles=self.rectangles)
 
         # ---- Plan k steps (Algorithm 6) ----
         #self.path = plan_k_steps(self.tree, x_goal,x_agent)
